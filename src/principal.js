@@ -36,6 +36,16 @@ window.sistema = {
     carregarTextos: (arquivo) => sistema?.carregarTextos(arquivo),
     adicionarMidias: (arquivos) => sistema?.adicionarMidias(arquivos),
     buscar: (termo) => sistema?.buscarPorTermo(termo),
+    obterTodosDadosBrutos: () => {
+        if (!sistema) return [];
+        // Mapear os dados para incluir o índice
+        return (sistema.dadosPlanilha || []).map((linha, idx) => {
+            return {
+                indice: idx,
+                itemLexical: linha.ITEM_LEXICAL ? linha.ITEM_LEXICAL.split('|')[0].trim() : `Linha ${idx + 1}`
+            };
+        });
+    },
     
     // --- PREVIEWS E EDIÇÃO ---
     abrirEditorParaItem: (indice) => editor?.obterItemParaEdicao(indice),

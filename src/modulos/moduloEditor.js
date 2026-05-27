@@ -15,8 +15,8 @@ class ModuloEditor {
     }
 
     obterItemParaEdicao(indice) {
-        if (!this.db.dadosBrutos || !this.db.dadosBrutos[indice]) return null;
-        const item = this.db.dadosBrutos[indice];
+        if (!this.db.dadosPlanilha || !this.db.dadosPlanilha[indice]) return null;
+        const item = this.db.dadosPlanilha[indice];
 
         // Desempacota Variações
         const vi = this._desempacotar(item.ITEM_LEXICAL);
@@ -69,7 +69,7 @@ class ModuloEditor {
     }
 
     salvarEdicao(indice, dadosEditados) {
-        if (!this.db.dadosBrutos || !this.db.dadosBrutos[indice]) return { sucesso: false, erros: ['Índice não encontrado.'] };
+        if (!this.db.dadosPlanilha || !this.db.dadosPlanilha[indice]) return { sucesso: false, erros: ['Índice não encontrado.'] };
 
         const errosValidacao = this.validador.validarEdicao(dadosEditados);
         if (errosValidacao.length > 0) {
@@ -91,7 +91,7 @@ class ModuloEditor {
             LEGENDA_IMAGEM: this._empacotar(imagens.map(i => i.leg))
         };
 
-        Object.assign(this.db.dadosBrutos[indice], linhaAtualizada);
+        Object.assign(this.db.dadosPlanilha[indice], linhaAtualizada);
         
         if (this.db.opcoes && this.db.opcoes.autoConstruirBanco) {
             this.db._construirBanco();

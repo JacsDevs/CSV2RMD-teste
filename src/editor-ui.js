@@ -30,7 +30,7 @@ function popularListaEditor() {
     // Como a arquitetura foi refatorada, vamos usar a função `abrirEditorParaItem` iterativamente 
     // ou acessar diretamente `window.sistema.buscar("")` para listar tudo.
     
-    const todosItens = window.sistema.buscar ? window.sistema.buscar("") : [];
+    const todosItens = window.sistema.obterTodosDadosBrutos ? window.sistema.obterTodosDadosBrutos() : [];
     
     container.innerHTML = '';
     
