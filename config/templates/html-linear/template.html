@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ metadados.html }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        {{ estilos_globais }}
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--cor-fundo);
+            color: var(--cor-texto);
+            line-height: 1.7;
+            padding: 0;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .cabecalho {
+            background: var(--cor-card);
+            padding: 32px 40px;
+            border-bottom: 2px solid var(--cor-borda);
+            margin-bottom: 0;
+        }
+        .cabecalho h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--cor-primaria);
+            margin-bottom: 8px;
+        }
+        .cabecalho .meta {
+            display: flex;
+            gap: 20px;
+            color: #64748b;
+            font-size: 0.9rem;
+        }
+        .introducao {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid var(--cor-borda);
+            color: #475569;
+        }
+        .conteudo {
+            padding: 20px 40px;
+            background: white;
+            min-height: 100vh;
+            box-shadow: var(--sombra);
+        }
+        .categoria-titulo {
+            font-size: 1.4em;
+            font-weight: 700;
+            color: #1a365d;
+            padding: 12px 0;
+            margin: 20px 0 10px 0;
+            border-bottom: 2px solid #3b82f6;
+        }
+        .entry-linear {
+            padding: 8px 0;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 0.95em;
+            line-height: 1.8;
+        }
+        .entry-linear:hover { background: #f8fafc; }
+        .entry-linear .termo {
+            font-size: 1.1em;
+            font-weight: 700;
+            color: #1a365d;
+            margin-right: 8px;
+        }
+        .entry-linear .fonetica, .entry-linear .fonemica {
+            color: #64748b;
+            font-family: monospace;
+            font-size: 0.9em;
+            margin-right: 8px;
+        }
+        .entry-linear .classe {
+            color: #64748b;
+            font-style: italic;
+            margin-right: 8px;
+        }
+        .entry-linear .traducao { color: #0f172a; font-weight: 500; }
+        .entry-linear .descricao { color: #475569; }
+        .entry-linear .audio-inline {
+            margin: 0 8px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .entry-linear .figura-inline {
+            display: inline-block;
+            margin: 4px 12px 4px 0;
+            vertical-align: middle;
+        }
+        .entry-linear .figura-inline img {
+            cursor: pointer;
+            border-radius: 4px;
+            transition: transform 0.2s;
+        }
+        .entry-linear .figura-inline img:hover { transform: scale(1.05); }
+        .entry-linear .relacionados-inline {
+            color: #64748b;
+            font-size: 0.9em;
+            display: block;
+            margin-top: 4px;
+        }
+        @media (max-width: 768px) {
+            .cabecalho { padding: 20px; }
+            .conteudo { padding: 10px 20px; }
+        }
+    </style>
+</head>
+<body>
+    <header class="cabecalho">
+        <h1>{{ metadados.html }}</h1>
+        <div class="meta">
+            <span><i class="far fa-user"></i> {{ metadados.autor }}</span>
+            <span><i class="far fa-calendar-alt"></i> Versão {{ metadados.versao }}</span>
+        </div>
+        <div class="introducao">{{ textos.intro_html | safe }}</div>
+    </header>
+
+    <div class="conteudo">
+        {{ corpo_dicionario | safe }}
+    </div>
+
+    {{ scripts_dados_js | safe }}
+</body>
+</html>

@@ -1,0 +1,72 @@
+<div class="entry-linear">
+    <p class="linha-entrada">
+        <strong class="termo">{{ TERMO }}</strong>
+        {{#FONEMICA}}<span class="fonemica">/{{ FONEMICA }}/</span>{{/FONEMICA}}
+        {{#FONETICA}}<span class="fonetica">[{{ FONETICA }}]</span>{{/FONETICA}}
+        {{#CLASSE}}<em class="classe">{{ CLASSE }}</em>{{/CLASSE}}
+    </p>
+    
+    {{#AUDIO}}
+    <span class="audio-inline">
+        🔊 <audio controls style="display:inline-block;vertical-align:middle;height:22px;">
+            <source src="{{ AUDIO }}" type="audio/mpeg">
+        </audio>
+    </span>
+    {{/AUDIO}}
+    
+    {{#SIGNIFICADOS}}
+    <span class="significado-linear">
+        {{#NUMERO}}{{ NUMERO }}. {{/NUMERO}}
+        {{#TRADUCAO}}<strong>{{ TRADUCAO }}</strong>{{/TRADUCAO}}
+        {{#DESCRICAO}} - {{ DESCRICAO }}{{/DESCRICAO}}
+        
+        {{#EXEMPLOS}}
+        <span class="exemplo-inline">
+            {{#TRANS}}<em>"{{ TRANS }}"</em>{{/TRANS}}
+            {{#TRAD}} ({{ TRAD }}){{/TRAD}}
+        </span>
+        {{/EXEMPLOS}}
+        
+        {{#IMAGENS}}
+        <img src="{{ ARQUIVO }}" alt="{{ LEGENDA }}" style="max-width:100px;max-height:75px;vertical-align:middle;border-radius:4px;margin:0 4px;">
+        {{/IMAGENS}}
+        
+        {{#VIDEOS}}
+        <video controls style="max-width:150px;max-height:100px;vertical-align:middle;display:inline-block;">
+            <source src="{{ ARQUIVO }}" type="video/mp4">
+        </video>
+        {{/VIDEOS}}
+        
+        {{#EXTRAS}}
+        <span class="extra-inline">{{ TEXTO }}</span>
+        {{/EXTRAS}}
+    </span>
+    {{/SIGNIFICADOS}}
+
+    {{#TEXTOS}}
+    <div class="textos-linear" style="display: block; margin-top: 10px; padding: 10px; background: #f4f6f8; border-radius: 4px; font-size: 0.95em;">
+        <strong style="color: #005A9C;">Texto: {{ TITULO_BASE }}</strong>
+        {{#TEXTO_NAO_LITERAL}}<br><em>{{ TEXTO_NAO_LITERAL }}</em>{{/TEXTO_NAO_LITERAL}}
+        
+        {{#VARIACOES}}
+            {{#FRASES}}
+            <div style="margin-top: 8px;">
+                <strong>{{ ORIGINAL }}</strong> 
+                {{#TRADUCAO}}({{ TRADUCAO }}){{/TRADUCAO}}
+                
+                {{#AUDIO_SRC}}
+                <audio controls style="height: 20px; vertical-align: middle; margin-left: 5px; max-width: 150px;">
+                    <source src="{{ AUDIO_SRC }}" type="audio/mpeg">
+                </audio>
+                {{/AUDIO_SRC}}
+                
+            </div>
+            {{/FRASES}}
+        {{/VARIACOES}}
+    </div>
+    {{/TEXTOS}}
+    
+    {{#ITENS_RELACIONADOS}}
+    <span class="relacionados-inline" style="display:block; margin-top:5px;">• {{ ITENS_RELACIONADOS }}</span>
+    {{/ITENS_RELACIONADOS}}
+</div>

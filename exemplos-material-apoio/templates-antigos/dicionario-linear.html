@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ metadados.html }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        :root {
+            --cor-fundo: #fafafa;
+            --cor-texto: #1e293b;
+            --cor-primaria: #0f172a;
+            --cor-secundaria: #3b82f6;
+            --cor-borda: #e2e8f0;
+            --cor-card: #ffffff;
+            --sombra: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--cor-fundo);
+            color: var(--cor-texto);
+            line-height: 1.7;
+            padding: 0;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .cabecalho {
+            background: var(--cor-card);
+            padding: 32px 40px;
+            border-bottom: 2px solid var(--cor-borda);
+            margin-bottom: 0;
+        }
+        .cabecalho h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--cor-primaria);
+            margin-bottom: 8px;
+        }
+        .cabecalho .meta {
+            display: flex;
+            gap: 20px;
+            color: #64748b;
+            font-size: 0.9rem;
+        }
+        .introducao {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid var(--cor-borda);
+            color: #475569;
+        }
+        .barra-controle {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: var(--cor-card);
+            padding: 12px 40px;
+            border-bottom: 1px solid var(--cor-borda);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+            box-shadow: var(--sombra);
+        }
+        .busca-wrapper {
+            flex: 1;
+            min-width: 200px;
+            display: flex;
+            gap: 8px;
+        }
+        .busca-wrapper input {
+            flex: 1;
+            padding: 8px 14px;
+            border: 1px solid var(--cor-borda);
+            border-radius: 8px;
+            font-size: 0.95rem;
+        }
+        .busca-wrapper input:focus {
+            outline: none;
+            border-color: var(--cor-secundaria);
+        }
+        .busca-wrapper button {
+            background: var(--cor-secundaria);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 0 16px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+        .filtros {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .filtro-select {
+            padding: 6px 10px;
+            border: 1px solid var(--cor-borda);
+            border-radius: 8px;
+            font-size: 0.85rem;
+            background: white;
+        }
+        .contador {
+            background: #eef2ff;
+            color: var(--cor-secundaria);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            white-space: nowrap;
+        }
+        .conteudo {
+            padding: 20px 40px;
+        }
+        .categoria-titulo {
+            font-size: 1.4em;
+            font-weight: 700;
+            color: #1a365d;
+            padding: 12px 0;
+            margin: 20px 0 10px 0;
+            border-bottom: 2px solid #3b82f6;
+        }
+        .entry-linear {
+            padding: 8px 0;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 0.95em;
+            line-height: 1.8;
+        }
+        .entry-linear:hover { background: #f8fafc; }
+        .entry-linear .termo {
+            font-size: 1.1em;
+            font-weight: 700;
+            color: #1a365d;
+            margin-right: 8px;
+        }
+        .entry-linear .fonetica {
+            color: #64748b;
+            font-family: monospace;
+            font-size: 0.9em;
+            margin-right: 8px;
+        }
+        .entry-linear .classe {
+            color: #64748b;
+            font-style: italic;
+            margin-right: 8px;
+        }
+        .entry-linear .traducao { color: #0f172a; font-weight: 500; }
+        .entry-linear .descricao { color: #475569; }
+        .entry-linear .audio-inline {
+            margin: 0 8px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .entry-linear .figura-inline {
+            display: inline-block;
+            margin: 4px 12px 4px 0;
+            vertical-align: middle;
+        }
+        .entry-linear .figura-inline img {
+            cursor: pointer;
+            border-radius: 4px;
+            transition: transform 0.2s;
+        }
+        .entry-linear .figura-inline img:hover { transform: scale(1.05); }
+        .entry-linear .relacionados-inline {
+            color: #64748b;
+            font-size: 0.9em;
+            display: block;
+            margin-top: 4px;
+        }
+        .sem-resultados {
+            text-align: center;
+            padding: 60px;
+            color: #64748b;
+        }
+        @media (max-width: 768px) {
+            .cabecalho { padding: 20px; }
+            .barra-controle { padding: 10px 20px; flex-direction: column; align-items: stretch; }
+            .conteudo { padding: 10px 20px; }
+        }
+    </style>
+</head>
+<body>
+    <header class="cabecalho">
+        <h1>{{ metadados.html }}</h1>
+        <div class="meta">
+            <span><i class="far fa-user"></i> {{ metadados.autor }}</span>
+            <span><i class="far fa-calendar-alt"></i> Versão {{ metadados.versao }}</span>
+        </div>
+        <div class="introducao">{{ textos.intro_html | safe }}</div>
+    </header>
+
+    <div class="barra-controle">
+        <div class="busca-wrapper">
+            <input type="text" id="search-input" placeholder="Pesquisar...">
+            <button id="search-button"><i class="fas fa-search"></i></button>
+        </div>
+        <select id="filtro-semantico" class="filtro-select"><option value="">Todos os campos</option></select>
+        <select id="filtro-classe" class="filtro-select"><option value="">Todas as classes</option></select>
+        <div class="contador" id="contador-itens">0 itens</div>
+    </div>
+
+    <div class="conteudo" id="conteudo">
+        <div class="sem-resultados">Carregando...</div>
+    </div>
+
+    <!-- PRIMEIRO: Define todas as funções -->
+    <script>
+        window.TAMANHO_LOTE = 50;
+        window.dados = [];
+        window.dadosFiltrados = [];
+        window.itensExibidos = [];
+        window.ultimoIndiceExibido = 0;
+        window.carregandoDados = false;
+
+        const conteudo = document.getElementById('conteudo');
+        const searchInput = document.getElementById('search-input');
+        const searchButton = document.getElementById('search-button');
+        const filtroSemantico = document.getElementById('filtro-semantico');
+        const filtroClasse = document.getElementById('filtro-classe');
+        const contadorSpan = document.getElementById('contador-itens');
+
+        let termoBusca = '';
+        let filtroSemanticoValor = '';
+        let filtroClasseValor = '';
+
+        function resolverMidia(nomeArquivo, pasta) {
+            if (!nomeArquivo) return '';
+            const midias = window.DicionarioMidias || {};
+            const fonte = midias[nomeArquivo];
+            if (!fonte) return `${pasta}/${nomeArquivo}`;
+            if (fonte.startsWith('data:')) return fonte;
+            return `${pasta}/${nomeArquivo}`;
+        }
+
+        function gerarEntradaHTML(item) {
+            const termo = (item['ITEM_LEXICAL'] || '???').split('|')[0].trim();
+            const fonetica = item['TRANSCRICAO_FONETICA'] || '';
+            const classe = item['CLASSE_GRAMATICAL'] || '';
+            const traducao = item['TRADUCAO_SIGNIFICADO'] || '';
+            const descricao = item['DESCRICAO'] || '';
+            const audio = item['ARQUIVO_SONORO'] ? item['ARQUIVO_SONORO'].split('|')[0].trim() : '';
+            const imagens = item['IMAGEM'] ? item['IMAGEM'].split('|') : [];
+            const legendas = item['LEGENDA_IMAGEM'] ? item['LEGENDA_IMAGEM'].split('|') : [];
+            const relacionados = item['ITENS_RELACIONADOS'] || '';
+            
+            let html = '<div class="entry-linear">';
+            html += `<p class="linha-entrada"><strong class="termo">${termo}</strong>`;
+            if (fonetica) html += ` <span class="fonetica">[${fonetica}]</span>`;
+            if (classe) html += ` <em class="classe">${classe}</em>`;
+            if (traducao) html += ` <span class="traducao">${traducao}</span>`;
+            if (descricao) html += ` <span class="descricao">${descricao}</span>`;
+            html += '</p>';
+            
+            if (audio) {
+                const src = resolverMidia(audio, 'audio');
+                html += `<span class="audio-inline"><audio controls style="display:inline-block;vertical-align:middle;height:22px;"><source src="${src}"></audio></span>`;
+            }
+            
+            imagens.forEach((img, i) => {
+                if (img.trim()) {
+                    const src = resolverMidia(img.trim(), 'foto');
+                    const leg = legendas[i] || '';
+                    html += `<figure class="figura-inline"><img src="${src}" alt="${leg}" style="max-width:120px;max-height:80px;vertical-align:middle;">`;
+                    if (leg) html += `<figcaption style="display:inline;margin-left:6px;font-size:0.85em;">${leg}</figcaption>`;
+                    html += '</figure>';
+                }
+            });
+            
+            if (relacionados) html += `<span class="relacionados-inline">• ${relacionados}</span>`;
+            html += '</div>';
+            return html;
+        }
+
+        function aplicarFiltrosEBusca() {
+            const termo = termoBusca.toLowerCase();
+            let resultados = window.dados.filter(item => {
+                if (filtroSemanticoValor && item['CAMPO_SEMANTICO'] !== filtroSemanticoValor) return false;
+                if (filtroClasseValor && item['CLASSE_GRAMATICAL'] !== filtroClasseValor) return false;
+                if (termo) {
+                    const campos = [item['ITEM_LEXICAL'], item['TRADUCAO_SIGNIFICADO'], item['DESCRICAO']];
+                    return campos.some(c => c && c.toString().toLowerCase().includes(termo));
+                }
+                return true;
+            });
+            window.dadosFiltrados = resultados;
+            window.itensExibidos = [];
+            window.ultimoIndiceExibido = 0;
+            conteudo.innerHTML = '';
+            carregarLoteFiltrado();
+        }
+
+        function carregarLoteFiltrado(quantidade = window.TAMANHO_LOTE) {
+            if (window.carregandoDados) return;
+            if (window.ultimoIndiceExibido >= window.dadosFiltrados.length) return;
+            window.carregandoDados = true;
+            const inicio = window.ultimoIndiceExibido;
+            const fim = Math.min(inicio + quantidade, window.dadosFiltrados.length);
+            const lote = window.dadosFiltrados.slice(inicio, fim);
+            window.itensExibidos.push(...lote);
+            window.ultimoIndiceExibido = fim;
+
+            let html = '';
+            let ultimaCategoria = '';
+            for (const item of window.itensExibidos) {
+                const cat = item['CAMPO_SEMANTICO'] || 'Sem Categoria';
+                if (cat !== ultimaCategoria) {
+                    html += `<h2 class="categoria-titulo">${cat}</h2>`;
+                    ultimaCategoria = cat;
+                }
+                html += gerarEntradaHTML(item);
+            }
+            conteudo.innerHTML = html;
+            contadorSpan.textContent = `${window.dadosFiltrados.length} itens`;
+            window.carregandoDados = false;
+        }
+
+        // FUNÇÃO GLOBAL - precisa existir antes dos scripts inline
+        window.adicionaDados = function(bloco) {
+            window.dados.push(...bloco);
+            if (window.dados.length === bloco.length) {
+                inicializarFiltros();
+                window.dadosFiltrados = [...window.dados];
+                carregarLoteFiltrado();
+            } else {
+                aplicarFiltrosEBusca();
+            }
+        };
+
+        function inicializarFiltros() {
+            const semanticos = [...new Set(window.dados.map(i => i['CAMPO_SEMANTICO']).filter(Boolean))].sort();
+            const classes = [...new Set(window.dados.map(i => i['CLASSE_GRAMATICAL']).filter(Boolean))].sort();
+            filtroSemantico.innerHTML = '<option value="">Todos os campos</option>';
+            semanticos.forEach(s => { const opt = document.createElement('option'); opt.value = s; opt.textContent = s; filtroSemantico.appendChild(opt); });
+            filtroClasse.innerHTML = '<option value="">Todas as classes</option>';
+            classes.forEach(c => { const opt = document.createElement('option'); opt.value = c; opt.textContent = c; filtroClasse.appendChild(opt); });
+        }
+
+        searchButton.addEventListener('click', () => { termoBusca = searchInput.value; aplicarFiltrosEBusca(); });
+        searchInput.addEventListener('keypress', e => { if (e.key === 'Enter') { termoBusca = searchInput.value; aplicarFiltrosEBusca(); } });
+        filtroSemantico.addEventListener('change', e => { filtroSemanticoValor = e.target.value; aplicarFiltrosEBusca(); });
+        filtroClasse.addEventListener('change', e => { filtroClasseValor = e.target.value; aplicarFiltrosEBusca(); });
+
+        // Intersection Observer
+        const sentinela = document.createElement('div');
+        sentinela.style.height = '1px';
+        document.body.appendChild(sentinela);
+        new IntersectionObserver((entries) => {
+            if (entries[0].isIntersecting && !window.carregandoDados && window.ultimoIndiceExibido < window.dadosFiltrados.length) {
+                carregarLoteFiltrado();
+            }
+        }, { rootMargin: '300px' }).observe(sentinela);
+    </script>
+
+    <!-- DEPOIS: Carrega os dados (scripts inline gerados pelo app.js) -->
+    {{ scripts_dados_js | safe }}
+</body>
+</html>

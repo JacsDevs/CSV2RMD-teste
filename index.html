@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Dados Lexicais</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .card { background: white; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        h2 { margin-top: 0; color: #333; }
+        input, button { padding: 10px; margin: 5px; }
+        button { background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        button.danger { background: #dc3545; }
+        button.danger:hover { background: #c82333; }
+        .resultados { background: #f8f9fa; padding: 15px; border-radius: 4px; max-height: 400px; overflow: auto; }
+        .status { padding: 10px; border-radius: 4px; margin-bottom: 10px; }
+        .ok { background: #d4edda; color: #155724; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        .error { background: #f8d7da; color: #721c24; }
+        .file-grid { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+        .file-tag { background: #e9ecef; padding: 5px 10px; border-radius: 15px; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📚 Sistema de Dados Lexicais</h1>
+        
+        <div class="card">
+            <h2>📁 Selecionar Pasta de Trabalho</h2>
+            <p>Selecione a pasta que contém:</p>
+            <ul>
+                <li><strong>dicionario.csv</strong> - Planilha com dados lexicais</li>
+                <li><strong>audio/</strong> - Pasta com arquivos de áudio</li>
+                <li><strong>foto/</strong> - Pasta com imagens</li>
+                <li><strong>video/</strong> - Pasta com vídeos</li>
+            </ul>
+            
+            <input type="file" id="pastaInput" webkitdirectory directory multiple>
+            <button onclick="carregarPasta()">🚀 Carregar Pasta</button>
+            <button onclick="limparTudo()" style="background:#dc3545">🗑️ Limpar</button>
+        </div>
+        
+        <div id="status" class="status info">Aguardando seleção de pasta...</div>
+        
+        <div class="card">
+            <h2>📄 Arquivos Encontrados</h2>
+            <div id="arquivos"></div>
+        </div>
+        
+        <div class="card">
+            <h2>📊 Estatísticas</h2>
+            <div id="estatisticas"></div>
+        </div>
+        
+        <div class="card">
+            <h2>📥 Exportação</h2>
+            <p>Após carregar a pasta, escolha um formato para exportar o projeto:</p>
+            <button onclick="exportarHtml(false)">️ HTML Cards (Separado)</button>
+            <button onclick="exportarHtml(true)">📦 HTML Cards (Embutido)</button>
+            <button onclick="exportarHtmlLinear(false)">📄 HTML Linear (Separado)</button>
+            <button onclick="exportarHtmlLinear(true)">📦 HTML Linear (Embutido)</button>
+            <button onclick="exportarTypst()">📘 Typst (.typ)</button>
+            <button onclick="exportarPdf()">📕 PDF Nativo</button>
+            <button onclick="exportarZip()">🗜️ Projeto Completo (.zip)</button>
+        </div>
+
+        <div class="card">
+            <h2>� Buscar</h2>
+            <input type="text" id="busca" placeholder="Digite um termo...">
+            <button onclick="buscarTermo()">Buscar</button>
+            <div id="resultados" class="resultados"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import GerenciadorDados from './src/nucleo/gerenciadorDados.js';
+        import CarregadorPasta from './src/utils/carregadorPasta.js';
+        import ModuloExportacao from './src/modulos/moduloExportacao.js';
+        
+        // Criar sistema global
+        window.sistema = new GerenciadorDados();
+        window.carregadorPasta = null;
+        window.exportador = null;
+        
+        // Funções globais para os botões inline
+        window.carregarPasta = async function() {
+            const input = document.getElementById('pastaInput');
+            if (!input.files || input.files.length === 0) {
+                alert('Selecione uma pasta primeiro!');
+                return;
+            }
+            
+            const status = document.getElementById('status');
+            status.textContent = '📁 Processando pasta...';
+            status.className = 'status info';
+            
+            try {
+                const resultado = await window.carregadorPasta.carregarPasta(input.files);
+                
+                const arquivosDiv = document.getElementById('arquivos');
+                arquivosDiv.innerHTML = `
+                    <div class="file-grid">
+                        <span class="file-tag">📊 Planilha: ${resultado.planilha ? '✅' : '❌'}</span>
+                        <span class="file-tag">📄 Textos: ${resultado.textos ? '✅' : '❌'}</span>
+                        <span class="file-tag">🎵 Áudio: ${resultado.audio.length} arquivos</span>
+                        <span class="file-tag">🖼️ Imagem: ${resultado.imagem.length} arquivos</span>
+                        <span class="file-tag">🎬 Vídeo: ${resultado.video.length} arquivos</span>
+                    </div>
+                `;
+                
+                status.textContent = '✅ Pasta carregada com sucesso!';
+                status.className = 'status ok';
+                
+                atualizarEstatisticas();
+                
+            } catch (erro) {
+                status.textContent = `❌ Erro: ${erro.message}`;
+                status.className = 'status error';
+                console.error(erro);
+            }
+        };
+        
+        window.limparTudo = function() {
+            if (window.sistema) window.sistema.limpar();
+            document.getElementById('arquivos').innerHTML = '<p>Nenhum arquivo carregado</p>';
+            document.getElementById('estatisticas').innerHTML = '<p>Nenhum dado carregado</p>';
+            document.getElementById('resultados').innerHTML = '';
+            document.getElementById('status').textContent = 'Sistema limpo. Selecione uma nova pasta.';
+            document.getElementById('status').className = 'status info';
+        };
+        
+        window.exportarHtml = async function(embutir) {
+            if (!window.exportador) return alert('Exportador não inicializado!');
+            if (!window.sistema.bancoDados) return alert('Carregue uma pasta com dados primeiro!');
+            
+            const status = document.getElementById('status');
+            status.textContent = '⏳ Gerando HTML... Isso pode levar alguns segundos.';
+            status.className = 'status info';
+            
+            try {
+                const html = await window.exportador.exportarHtmlCards({ embutirMidias: embutir });
+                const nomeArquivo = embutir ? 'dicionario-embutido.html' : 'dicionario-cards.html';
+                window.exportador.salvarArquivo(html, nomeArquivo);
+                status.textContent = `✅ Arquivo ${nomeArquivo} gerado com sucesso!`;
+                status.className = 'status ok';
+            } catch (erro) {
+                status.textContent = `❌ Erro na exportação HTML: ${erro.message}`;
+                status.className = 'status error';
+            }
+        };
+
+        window.exportarHtmlLinear = async function(embutir) {
+            if (!window.exportador) return alert('Exportador não inicializado!');
+            if (!window.sistema.bancoDados) return alert('Carregue uma pasta com dados primeiro!');
+            
+            const status = document.getElementById('status');
+            status.textContent = '⏳ Gerando HTML Linear... Isso pode levar alguns segundos.';
+            status.className = 'status info';
+            
+            try {
+                const html = await window.exportador.exportarHtmlLinear({ embutirMidias: embutir });
+                const nomeArquivo = embutir ? 'dicionario-linear-embutido.html' : 'dicionario-linear.html';
+                window.exportador.salvarArquivo(html, nomeArquivo);
+                status.textContent = `✅ Arquivo ${nomeArquivo} gerado com sucesso!`;
+                status.className = 'status ok';
+            } catch (erro) {
+                status.textContent = `❌ Erro na exportação HTML Linear: ${erro.message}`;
+                status.className = 'status error';
+            }
+        };
+
+        window.exportarTypst = async function() {
+            if (!window.exportador) return alert('Exportador não inicializado!');
+            if (!window.sistema.bancoDados) return alert('Carregue uma pasta com dados primeiro!');
+            
+            const status = document.getElementById('status');
+            status.textContent = '⏳ Gerando documento Typst...';
+            status.className = 'status info';
+            
+            try {
+                const typst = await window.exportador.exportarTypst();
+                window.exportador.salvarArquivo(typst, 'dicionario.typ', 'text/plain;charset=utf-8');
+                status.textContent = `✅ Arquivo dicionario.typ gerado com sucesso!`;
+                status.className = 'status ok';
+            } catch (erro) {
+                status.textContent = `❌ Erro na exportação Typst: ${erro.message}`;
+                status.className = 'status error';
+            }
+        };
+
+        window.exportarPdf = async function() {
+            if (!window.exportador) return alert('Exportador não inicializado!');
+            if (!window.sistema.bancoDados) return alert('Carregue uma pasta com dados primeiro!');
+            
+            const status = document.getElementById('status');
+            status.textContent = '⏳ Gerando documento PDF offline... Isso pode levar alguns segundos dependendo da quantidade de mídias.';
+            status.className = 'status info';
+            
+            try {
+                // Chama o Módulo de Exportação que criamos, que lida com todo o WASM offline e download
+                await window.exportador.exportarPdf({}, 'dicionario.pdf');
+                status.textContent = '✅ Arquivo PDF gerado com sucesso!';
+                status.className = 'status ok';
+            } catch (erro) {
+                status.textContent = `❌ Erro na exportação de PDF: ${erro.message}`;
+                status.className = 'status error';
+            }
+        };
+
+        window.exportarZip = async function() {
+            if (!window.exportador) return alert('Exportador não inicializado!');
+            if (!window.sistema.bancoDados) return alert('Carregue uma pasta com dados primeiro!');
+            
+            const status = document.getElementById('status');
+            status.textContent = '⏳ Gerando pacote ZIP... Aguarde (pode demorar dependendo das mídias).';
+            status.className = 'status info';
+            
+            try {
+                await window.exportador.exportarZip('dicionario_completo.zip');
+                status.textContent = '✅ Arquivo ZIP gerado com sucesso!';
+                status.className = 'status ok';
+            } catch (erro) {
+                status.textContent = `❌ Erro ao exportar ZIP: ${erro.message}`;
+                status.className = 'status error';
+            }
+        };
+
+        window.buscarTermo = function() {
+            const termo = document.getElementById('busca').value;
+            if (!termo) return;
+            
+            const resultados = window.sistema.buscarPorTermo(termo);
+            const div = document.getElementById('resultados');
+            
+            if (resultados.length === 0) {
+                div.innerHTML = '<p>Nenhum resultado encontrado</p>';
+            } else {
+                div.innerHTML = resultados.map(r => `
+                    <div style="border-bottom:1px solid #ddd; padding:10px">
+                        <strong>${r.TERMO_PRINCIPAL || r._TERMO_PRINCIPAL || '?'}</strong><br>
+                        Classe: ${r.CLASSE_GRAMATICAL || '-'}<br>
+                        Campo: ${r.CAMPO_SEMANTICO || '-'}
+                    </div>
+                `).join('');
+            }
+        };
+        
+        function atualizarEstatisticas() {
+            if (!window.sistema) return;
+            const stats = window.sistema.obterEstatisticas();
+            const estatisticasDiv = document.getElementById('estatisticas');
+            
+            if (!stats.disponivel) {
+                estatisticasDiv.innerHTML = '<p>Nenhum dado carregado</p>';
+                return;
+            }
+            
+            estatisticasDiv.innerHTML = `
+                <p><strong>Entradas:</strong> ${stats.entradas || 0}</p>
+                <p><strong>Variações:</strong> ${stats.variacoes || 0}</p>
+                <p><strong>Significados:</strong> ${stats.significados || 0}</p>
+                <p><strong>Mídias:</strong> Áudio: ${stats.midias?.audio || 0}, Imagem: ${stats.midias?.imagem || 0}, Vídeo: ${stats.midias?.video || 0}</p>
+            `;
+        }
+        
+        // Inicializar sistema
+        async function iniciar() {
+            console.log('🚀 Iniciando sistema...');
+            await window.sistema.inicializar();
+            window.carregadorPasta = new CarregadorPasta(
+                window.sistema.configurador, 
+                window.sistema.vfs, 
+                window.sistema
+            );
+            
+            window.exportador = new ModuloExportacao(window.sistema);
+            
+            // Intercepta a função de salvar para apenas visualizar o arquivo gerado
+            window.exportador.salvarArquivoBlob = function(blob, nomeArquivo) {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.target = '_blank'; // Força a abertura em uma nova aba
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                setTimeout(() => URL.revokeObjectURL(url), 5000); // Dá tempo do navegador abrir
+                console.log(`👁️ Visualizando: ${nomeArquivo}`);
+            };
+            
+            await window.exportador.inicializar();
+            
+            console.log('✅ Sistema pronto!');
+            console.log('📌 Nomes de planilha esperados:', window.sistema.configurador.getNomesArquivo('planilha'));
+            
+            // Atualizar estatísticas periodicamente
+            setInterval(atualizarEstatisticas, 2000);
+        }
+        
+        iniciar();
+    </script>
+</body>
+</html>

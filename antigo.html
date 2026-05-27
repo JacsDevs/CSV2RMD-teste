@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSV2DMLI</title>    
+    <!-- Papa Parse -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>  
+    <!-- Fontes -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">   
+    <!-- Estilo Principal -->
+    <link rel="stylesheet" href="static/css/style.css">
+</head>
+<body>
+
+<div class="app-layout">
+
+    <!-- ============================================ -->
+    <!-- PAINEL PRINCIPAL -->
+    <!-- ============================================ -->
+    <main class="main-panel">
+        <header class="app-header">
+            <h1>CSV2DMLI <span class="badge">v0.1</span></h1>
+            <div class="header-actions">
+                <button class="btn btn-sm btn-outline" onclick="carregarEstado()">📂 Carregar</button>
+                <button class="btn btn-sm btn-primary" onclick="salvarEstado()">💾 Salvar</button>
+                <button class="btn btn-sm btn-custom" onclick="document.getElementById('modalCustomizacao').showModal()">⚙️ Customização</button>
+                <button class="btn btn-sm btn-new-project" onclick="limparMemoria()" title="Limpar tudo e começar um novo projeto">
+                    <span class="btn-icon">🗑️</span>
+                    <span class="btn-text">Novo Projeto</span>
+                </button>
+            </div>
+        </header>
+
+        <div class="scroll-content">
+
+            <!-- Status Geral -->
+            <div class="status-grid">
+                <div class="status-card" id="statusCsvCard">
+                    <span class="label">📊 Base</span>
+                    <span class="value" id="statusCsv">Pendente</span>
+                </div>
+                <div class="status-card" id="statusAudioCard">
+                    <span class="label">🎵 Áudios</span>
+                    <span class="value" id="statusAudio">0</span>
+                </div>
+                <div class="status-card" id="statusImagemCard">
+                    <span class="label">🖼️ Imagens</span>
+                    <span class="value" id="statusImagem">0</span>
+                </div>
+                <div class="status-card" id="statusVideoCard">
+                    <span class="label">🎬 Vídeos</span>
+                    <span class="value" id="statusVideo">0</span>
+                </div>
+            </div>
+
+            <!-- ============================================ -->
+            <!-- PASSO 1: FONTE DE DADOS -->
+            <!-- ============================================ -->
+            <details class="step-card" open id="step1">
+                <summary class="step-header">
+                    <span class="step-number">1</span>
+                    <span class="step-title">📊 Fonte de Dados</span>
+                    <span class="step-badge" id="badgeCsv">Pendente</span>
+                </summary>
+                <div class="step-body">
+                    <p class="step-desc">Selecione a pasta do projeto (recomendado) ou apenas o arquivo CSV.</p>
+                    
+                    <!-- Pasta do Projeto -->
+                    <div class="drop-zone drop-zone-highlight" id="pastaProjetoDropZone">
+                        <p>📁 <b>Selecionar Pasta do Projeto</b></p>
+                        <p class="drop-desc">Carrega CSV, mídias e configurações automaticamente</p>
+                        <input type="file" id="filePastaProjeto" webkitdirectory multiple style="display:none">
+                    </div>
+
+                    <div class="divider-text"><span>ou</span></div>
+
+                    <!-- CSV Manual -->
+                    <div class="drop-zone" id="csvDropZone">
+                        <p>📄 Arraste o <b>dicionario.csv</b> aqui</p>
+                        <input type="file" id="fileCsv" accept=".csv" style="display:none">
+                    </div>
+                    
+                    <div class="mini-stats">
+                        <span id="csvLinhas">0 linhas</span>
+                        <span id="csvColunas">0 colunas</span>
+                        <span id="csvCategorias">0 categorias</span>
+                    </div>
+                </div>
+            </details>
+
+            <!-- ============================================ -->
+            <!-- PASSO 2: MÍDIAS -->
+            <!-- ============================================ -->
+            <details class="step-card" id="step2">
+                <summary class="step-header">
+                    <span class="step-number">2</span>
+                    <span class="step-title">📁 Mídias e Validar</span>
+                    <span class="step-badge" id="badgeMidias">Pendente</span>
+                </summary>
+                <div class="step-body">
+                    <p class="step-desc">Selecione as pastas com os arquivos de áudio, imagem e vídeo.</p>
+                    
+                    <div class="media-grid-simple">
+                        <div class="media-panel" id="panelAudio" onclick="carregarPasta('audio')">
+                            <span class="media-icon">🎵</span>
+                            <span class="media-title">Áudio</span>
+                            <span class="media-count" id="countAudio">0</span>
+                            <span class="media-label">arquivos</span>
+                        </div>
+                        <div class="media-panel" id="panelImagem" onclick="carregarPasta('imagem')">
+                            <span class="media-icon">🖼️</span>
+                            <span class="media-title">Imagens</span>
+                            <span class="media-count" id="countImagem">0</span>
+                            <span class="media-label">arquivos</span>
+                        </div>
+                        <div class="media-panel" id="panelVideo" onclick="carregarPasta('video')">
+                            <span class="media-icon">🎬</span>
+                            <span class="media-title">Vídeos</span>
+                            <span class="media-count" id="countVideo">0</span>
+                            <span class="media-label">arquivos</span>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-3" style="display: flex; gap: 8px;">
+                        <button class="btn btn-outline" onclick="validarTudo()">🔍 Validar Integridade</button>
+                        <button class="btn btn-outline" onclick="abrirModalEditor()">📝 Editor de Entradas</button>
+                    </div>
+                </div>
+            </details>
+
+            <!-- ============================================ -->
+            <!-- PASSO 3: METADADOS -->
+            <!-- ============================================ -->
+            <details class="step-card" id="step3">
+                <summary class="step-header">
+                    <span class="step-number">3</span>
+                    <span class="step-title">📝 Metadados Básicos</span>
+                    <span class="step-badge" id="badgeMeta">Pendente</span>
+                </summary>
+                <div class="step-body">
+                    <p class="step-desc">Preencha as informações principais do dicionário.</p>
+                    
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label>Título do Site (HTML)</label>
+                            <input type="text" id="metaHtml" value="Meu Dicionário Interativo" placeholder="Ex: Dicionário Makurap-Português">
+                        </div>
+                        <div class="form-group">
+                            <label>Título do PDF / Livro</label>
+                            <input type="text" id="metaPdf" value="Meu Dicionário" placeholder="Ex: Dicionário Makurap-Português">
+                        </div>
+                        <div class="form-group">
+                            <label>Autor(es)</label>
+                            <input type="text" id="metaAutor" placeholder="Ex: Povo Makurap, Victor Rocha">
+                        </div>
+                        <div class="form-group">
+                            <label>Ano</label>
+                            <input type="text" id="metaAno" placeholder="Ex: 2026">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Introdução (Markdown)</label>
+                        <textarea id="introMarkdown" placeholder="Escreva a introdução em Markdown..." rows="6" style="font-family: 'Fira Code', monospace; font-size: 13px;"></textarea>
+                        <div style="display: flex; gap: 8px; margin-top: 8px;">
+                            <button class="btn btn-sm btn-outline" onclick="previewIntroducao()" type="button">👁️ Pré-visualizar</button>
+                            <span style="font-size: 11px; color: var(--text-muted); align-self: center;">A mesma introdução será convertida para HTML (site) e Typst (PDF)</span>
+                        </div>
+                    </div>
+                </div>
+            </details>
+
+            <!-- ============================================ -->
+            <!-- PASSO 4: ESTRUTURA -->
+            <!-- ============================================ -->
+            <details class="step-card" id="step4">
+                <summary class="step-header">
+                    <span class="step-number">4</span>
+                    <span class="step-title">🗂️ Estrutura & Ordenação</span>
+                    <span class="step-badge" id="badgeEstrutura">Automático</span>
+                </summary>
+                <div class="step-body">
+                    <p class="step-desc">Configure a ordem das categorias e capítulos.</p>
+                    
+                    <div class="estrutura-grid">
+                        <!-- COLUNA: ORDEM ALFABÉTICA -->
+                        <div>
+                            <h4>Ordem Alfabética</h4>
+                            <label class="toggle-label">
+                                <div class="toggle-switch">
+                                    <input type="checkbox" id="swAlpha" checked>
+                                    <div class="toggle-slider"></div>
+                                </div>
+                                Manter ordem alfabética automática
+                            </label>
+                            
+                            <!-- Instrução que só aparece se o toggle for desligado -->
+                            <p id="instrucaoAlpha" style="display: none; font-size: 0.9em; color: #666; margin: 10px 0;">
+                                Selecione os campos onde quer manter a ordem original do CSV:
+                            </p>
+                            
+                            <!-- Grade de opções oculta por padrão pois o swAlpha está "checked" -->
+                            <div class="checkbox-grid" id="gridAlpha" style="display: none;">
+                                <span class="placeholder-text">Carregue o CSV primeiro</span>
+                            </div>
+                        </div>
+                        
+                        <!-- COLUNA: ORDEM DOS CAPÍTULOS -->
+                        <div>
+                            <h4>Ordem dos Capítulos</h4>
+                            <label class="toggle-label">
+                                <div class="toggle-switch">
+                                    <input type="checkbox" id="swSemantic" checked>
+                                    <div class="toggle-slider"></div>
+                                </div>
+                                Ordenação manual
+                            </label>
+                            <p id="instrucaoSemantic" style="display: none; font-size: 0.9em; color: #666; margin: 10px 0;">
+                                Segure e arraste para ordenar os campos semânticos. 
+                            </p>                            
+                            <!-- Lista ordenável visível por padrão pois o swSemantic está "checked" -->
+                            <div class="sortable-list" id="gridSemantic">
+                                <span class="placeholder-text">Carregue o CSV primeiro</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </details>
+
+            <!-- ============================================ -->
+            <!-- PASSO 5: VALIDAR E EXPORTAR -->
+            <!-- ============================================ -->
+            <details class="step-card" open id="step5">
+                <summary class="step-header">
+                    <span class="step-number">5</span>
+                    <span class="step-title">✅ Validar e Exportar</span>
+                    <span class="step-badge badge-ok">Pronto</span>
+                </summary>
+                <div class="step-body">
+                    <div class="export-options">
+                        <label class="toggle-label mb-3" style="display: flex; align-items: center; gap: 10px; padding: 12px; background: var(--bg-secondary); border-radius: 8px; margin-bottom: 16px;">
+                            <div class="toggle-switch">
+                                <input type="checkbox" id="swMidia" checked>
+                                <div class="toggle-slider"></div>
+                            </div>
+                            <div>
+                                <strong>📦 Embutir mídias no HTML (Base64)</strong>
+                                <p style="font-size: 0.85em; color: var(--text-muted); margin: 4px 0 0 0;">Arquivos de áudio, imagem e vídeo serão incorporados diretamente no HTML. Recomendado para compartilhar o site como arquivo único.</p>
+                            </div>
+                        </label>
+                    </div>
+                    
+                    <div class="export-grid">
+                        <button class="export-btn export-html" onclick="exportarHTML()">
+                            <span class="export-icon">🌐</span>
+                            <span class="export-label">Gerar Site HTML</span>
+                        </button>
+                        <button class="export-btn export-typst" onclick="exportarApenasTypst()">
+                            <span class="export-icon">📘</span>
+                            <span class="export-label">Gerar Typst</span>
+                        </button>
+                        <button class="export-btn export-pdf" onclick="exportarTypstCompleto()">
+                            <span class="export-icon">📑</span>
+                            <span class="export-label">Gerar PDF</span>
+                        </button>
+                        <button class="export-btn export-csv" onclick="exportarCSV()">
+                            <span class="export-icon">📊</span>
+                            <span class="export-label">Baixar CSV Editado</span>
+                        </button>
+                        <button class="export-btn export-json" onclick="exportarJSON()">
+                            <span class="export-icon">🗄️</span>
+                            <span class="export-label">Banco JSON</span>
+                        </button>
+                    </div>
+                </div>
+            </details>
+
+        </div>
+    </main>
+
+    <!-- ============================================ -->
+    <!-- PAINEL DIREITO (TERMINAL) -->
+    <!-- ============================================ -->
+    <aside class="terminal-panel">
+        <div class="terminal-header">
+            <h3><span class="terminal-dot">●</span> Terminal</h3>
+            <div class="terminal-actions">
+                <span onclick="copiarTerminal()">Copiar</span>
+                <span onclick="limparTerminal()">Limpar</span>
+            </div>
+        </div>
+        <div class="terminal" id="terminal"></div>
+    </aside>
+
+</div>
+
+<!-- Controle de Zoom -->
+<div class="zoom-control">
+    <button onclick="ajustarZoom(-0.1)">🔍−</button>
+    <span class="zoom-level" id="zoomLevel">100%</span>
+    <button onclick="ajustarZoom(0.1)">🔍+</button>
+    <button onclick="resetZoom()">↺</button>
+</div>
+
+<!-- ============================================ -->
+<!-- MODAL DE CUSTOMIZAÇÃO AVANÇADA -->
+<!-- ============================================ -->
+<dialog id="modalCustomizacao" class="modal-custom">
+    <div class="modal-custom-header">
+        <h2>⚙️ Customização Avançada e Templates</h2>
+        <button class="btn-close" onclick="document.getElementById('modalCustomizacao').close()">✕</button>
+    </div>
+    
+    <div class="modal-custom-body">
+        <!-- Tabs -->
+        <div class="custom-tabs">
+            <button class="custom-tab active" onclick="switchCustomTab(event, 'tab-html')">🌐 HTML</button>
+            <button class="custom-tab" onclick="switchCustomTab(event, 'tab-typst')">📘 Typst</button>
+            <button class="custom-tab" onclick="switchCustomTab(event, 'tab-geral')">⚙️ Geral</button>
+            <button class="custom-tab" onclick="switchCustomTab(event, 'tab-download')">📥 Download</button>
+        </div>
+
+        <!-- ============================================ -->
+        <!-- TAB: HTML -->
+        <!-- ============================================ -->
+        <div id="tab-html" class="custom-tab-content active">
+            <h3>Configurações do Site HTML</h3>
+            
+            <!-- Seletor de Estilo -->
+            <div class="form-group">
+                <label>Estilo de Exibição</label>
+                <select id="templateEntradaSelect" onchange="templateEntradaAtivo = this.value; localStorage.setItem('csv2dmli_templateEntradaAtivo', this.value);" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border-color);">
+                    <option value="card">🃏 Cards (visual moderno)</option>
+                    <option value="linear">📜 Linear (dicionário tradicional)</option>
+                </select>
+            </div>
+
+            <!-- Templates do Documento -->
+            <h4>Templates do Documento</h4>
+            
+            <!-- Template HTML Cards -->
+            <div class="drop-zone" id="templateHtmlZone">
+                <p>🃏 <b>HTML com Cards</b> — dicionario.html</p>
+                <input type="file" id="fileTemplateHtml" accept=".html" style="display:none">
+                <div id="templateHtmlStatus" class="template-status">Padrão interno</div>
+                <div class="template-actions">
+                    <button class="btn btn-sm btn-outline" onclick="event.stopPropagation(); baixarTemplateAtual('html')" title="Baixar template atual">📥 Baixar</button>
+                    <button class="btn btn-sm btn-outline" onclick="event.stopPropagation(); usarTemplatePadrao('html')" title="Voltar ao template padrão">↺ Padrão</button>
+                </div>
+            </div>
+            
+            <!-- Template HTML Linear -->
+            <div class="drop-zone" id="templateHtmlLinearZone">
+                <p>📜 <b>HTML Padrão</b> — dicionario-linear.html</p>
+                <input type="file" id="fileTemplateHtmlLinear" accept=".html" style="display:none">
+                <div id="templateHtmlLinearStatus" class="template-status">Padrão interno</div>
+                <div class="template-actions">
+                    <button class="btn btn-sm btn-outline" onclick="event.stopPropagation(); baixarTemplateAtual('html-linear')" title="Baixar template atual">📥 Baixar</button>
+                    <button class="btn btn-sm btn-outline" onclick="event.stopPropagation(); usarTemplatePadrao('html-linear')" title="Voltar ao template padrão">↺ Padrão</button>
+                </div>
+            </div>
+            
+            <!-- Templates de Entrada -->
+            <h4>Templates de Entrada</h4>
+            
+            <!-- Template Entrada Card -->
+            <div class="drop-zone" id="templateEntradaHtmlZone">
+                <p>🃏 <b>entrada-card.html</b></p>
+                <input type="file" id="fileTemplateEntradaCardHtml" accept=".html" style="display:none">
+                <div id="templateEntradaCardHtmlStatus" class="template-status">Padrão interno</div>
+                <div class="template-actions">
+                    <button class="btn btn-sm btn-outline" onclick="event.stopPropagation(); baixarTemplateEntradaAtual('html-card')" title="Baixar template atual">📥 Baixar</button>
+                    <button class="btn btn-sm btn-outline" onclick="event.stopPropagation(); resetarTemplateEntrada('html-card')" title="Voltar ao template padrão">↺ Padrão</button>
+                </div>
+            </div>
+            
+            <!-- Template Entrada Linear -->
+            <div class="drop-zone" id="templateEntradaLinearHtmlZone">
+                <p>📜 <b>entrada-linear.html</b></p>
+                <input type="file" id="fileTemplateEntradaLinearHtml" accept=".html" style="display:none">
+                <div id="templateEntradaLinearHtmlStatus" class="template-status">Padrão interno</div>
+                <div class="template-actions">
+                    <button class="btn btn-sm btn-outline" onclick="event.stopPropagation(); baixarTemplateEntradaAtual('html-linear')" title="Baixar template atual">📥 Baixar</button>
+                    <button class="btn btn-sm btn-outline" onclick="event.stopPropagation(); resetarTemplateEntrada('html-linear')" title="Voltar ao template padrão">↺ Padrão</button>
+                </div>
+            </div>
+
+            <!-- CSS Templates -->
+            <h4>Templates CSS</h4>
+            
+            <!-- CSS Card -->
+            <div class="drop-zone" id="templateCssCardZone" style="border-style: dashed;">
+                <p>🎨 <b>entrada-card.css</b></p>
+                <input type="file" id="fileTemplateCssCard" accept=".css" style="display:none">
+                <div id="templateCssCardStatus" class="template-status">Padrão interno</div>
+                <div class="template-actions">
+                    <button class="btn btn-sm btn-outline" onclick="event.stopPropagation(); baixarCSSAtual('entrada-card')" title="Baixar CSS atual">📥 Baixar</button>
+                    <button class="btn btn-sm btn-outline" onclick="event.stopPropagation(); resetarCSS('entrada-card')" title="Voltar ao CSS padrão">↺ Padrão</button>
+                </div>
+            </div>
+            
+            <!-- CSS Linear -->
+            <div class="drop-zone" id="templateCssLinearZone" style="border-style: dashed;">
+                <p>🎨 <b>entrada-linear.css</b></p>
+                <input type="file" id="fileTemplateCssLinear" accept=".css" style="display:none">
+                <div id="templateCssLinearStatus" class="template-status">Padrão interno</div>
+                <div class="template-actions">
+                    <button class="btn btn-sm btn-outline" onclick="event.stopPropagation(); baixarCSSAtual('entrada-linear')" title="Baixar CSS atual">📥 Baixar</button>
+                    <button class="btn btn-sm btn-outline" onclick="event.stopPropagation(); resetarCSS('entrada-linear')" title="Voltar ao CSS padrão">↺ Padrão</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================ -->
+        <!-- TAB: TYPST -->
+        <!-- ============================================ -->
+        <div id="tab-typst" class="custom-tab-content">
+            <h3>Configurações do Typst</h3>
+            
+            <!-- Template Typst Documento -->
+            <div class="drop-zone" id="templateTypstZone">
+                <p>📘 <b>Template Typst</b> — dicionario.typ</p>
+                <input type="file" id="fileTemplateTypst" accept=".typ" style="display:none">
+                <div id="templateTypstStatus" class="template-status">Padrão interno</div>
+                <div class="template-actions">
+                    <button class="btn btn-sm btn-outline" onclick="event.stopPropagation(); baixarTemplateAtual('typst')" title="Baixar template atual">📥 Baixar</button>
+                    <button class="btn btn-sm btn-outline" onclick="event.stopPropagation(); usarTemplatePadrao('typst')" title="Voltar ao template padrão">↺ Padrão</button>
+                </div>
+            </div>
+            
+            <!-- Template Entrada Typst -->
+            <div class="drop-zone" id="templateEntradaTypstZone">
+                <p>📝 <b>Template de Entrada</b> — entrada.typ</p>
+                <input type="file" id="fileTemplateEntradaTypst" accept=".typ" style="display:none">
+                <div id="templateEntradaTypstStatus" class="template-status">Padrão interno</div>
+                <div class="template-actions">
+                    <button class="btn btn-sm btn-outline" onclick="event.stopPropagation(); baixarTemplateEntradaAtual('typst')" title="Baixar template atual">📥 Baixar</button>
+                    <button class="btn btn-sm btn-outline" onclick="event.stopPropagation(); resetarTemplateEntrada('typst')" title="Voltar ao template padrão">↺ Padrão</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================ -->
+        <!-- TAB: GERAL -->
+        <!-- ============================================ -->
+        <div id="tab-geral" class="custom-tab-content">
+            <h3>Arquivos de Configuração</h3>
+            
+            <!-- Configuração Completa -->
+            <div class="drop-zone" id="configFullDropZone">
+                <p>⚙️ <b>configuracao.txt</b> (metadados e switches)</p>
+                <input type="file" id="fileConfigFull" accept=".txt" style="display:none">
+                <div class="template-actions">
+                    <button class="btn btn-sm btn-outline" onclick="event.stopPropagation(); exportarConfiguracao()" title="Baixar configuração atual">📥 Exportar</button>
+                </div>
+            </div>
+            
+            <!-- Textos Extras -->
+            <div class="drop-zone" id="textosDropZone">
+                <p>📝 <b>textos.json</b> (textos extras)</p>
+                <input type="file" id="fileTextos" accept=".json" style="display:none">
+            </div>
+            
+            <!-- Introdução HTML -->
+            <div class="drop-zone" id="introHtmlDropZone">
+                <p>📄 <b>intro_html.txt</b></p>
+                <input type="file" id="fileIntroHtml" accept=".txt" style="display:none">
+            </div>
+            
+            <!-- Introdução PDF -->
+            <div class="drop-zone" id="introPdfDropZone">
+                <p>📄 <b>intro_pdf.txt</b></p>
+                <input type="file" id="fileIntroPdf" accept=".txt" style="display:none">
+            </div>
+            
+            <!-- Referência -->
+            <div class="drop-zone" id="referenciaDropZone">
+                <p>📚 <b>referencia.txt</b></p>
+                <input type="file" id="fileReferencia" accept=".txt" style="display:none">
+            </div>
+            
+            <!-- Alfabeto -->
+            <div class="drop-zone" id="alfabetoDropZone">
+                <p>🔤 <b>ordem-alfabeto.txt</b></p>
+                <input type="file" id="fileAlfabeto" accept=".txt" style="display:none">
+                <div id="alfabetoPreview" style="font-size:11px;color:var(--primary);margin-top:4px;display:none;"></div>
+                <div class="template-actions" id="alfabetoActions" style="display:none;">
+                    <button class="btn btn-sm btn-outline" onclick="event.stopPropagation(); limparAlfabeto()" title="Remover alfabeto personalizado">↺ Padrão</button>
+                </div>
+            </div>
+            
+            <!-- Botão Exportar Configuração -->
+            <button class="btn btn-outline w-full mt-2" onclick="exportarConfiguracao()">📤 Baixar configuracao.txt</button>
+            
+            <!-- Separador -->
+            <hr style="margin: 20px 0; border-color: var(--border-color);">
+            
+            <!-- Zona de Perigo - Limpeza Geral -->
+            <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 16px;">
+                <h4 style="color: #dc2626; margin: 0 0 8px 0; display: flex; align-items: center; gap: 8px;">
+                    <span>🗑️</span> Zona de Perigo
+                </h4>
+                <p style="font-size: 13px; color: #7f1d1d; margin: 0 0 12px 0; line-height: 1.5;">
+                    Limpa completamente todos os dados, templates, mídias e configurações para iniciar um novo projeto.
+                    <br><strong style="color: #dc2626;">⚠️ Esta ação não pode ser desfeita!</strong>
+                </p>
+                <button class="btn btn-danger w-full" onclick="limparMemoria()">
+                    🗑️ Limpar Tudo e Começar Novo Projeto
+                </button>
+            </div>
+        </div>
+
+        <!-- ============================================ -->
+        <!-- TAB: DOWNLOAD -->
+        <!-- ============================================ -->
+        <div id="tab-download" class="custom-tab-content">
+            <h3>Baixar Templates para Edição</h3>
+            <p class="step-desc">Baixe os arquivos atuais, edite no seu computador e carregue nas abas acima.</p>
+            
+            <!-- Documentos -->
+            <h4>📄 Documentos</h4>
+            <div class="download-grid">
+                <button class="download-card" onclick="baixarTemplateAtual('html')">
+                    <span class="download-icon">🌐</span>
+                    <span class="download-label">HTML Cards</span>
+                    <span class="download-file">dicionario.html</span>
+                </button>
+                <button class="download-card" onclick="baixarTemplateAtual('html-linear')">
+                    <span class="download-icon">📜</span>
+                    <span class="download-label">HTML Padrão</span>
+                    <span class="download-file">dicionario-linear.html</span>
+                </button>
+                <button class="download-card" onclick="baixarTemplateAtual('typst')">
+                    <span class="download-icon">📘</span>
+                    <span class="download-label">Typst</span>
+                    <span class="download-file">dicionario.typ</span>
+                </button>
+            </div>
+            
+            <!-- Entradas -->
+            <h4>📝 Entradas</h4>
+            <div class="download-grid">
+                <button class="download-card" onclick="baixarTemplateEntradaAtual('html-card')">
+                    <span class="download-icon">🃏</span>
+                    <span class="download-label">Entrada Card</span>
+                    <span class="download-file">entrada-card.html</span>
+                </button>
+                <button class="download-card" onclick="baixarTemplateEntradaAtual('html-linear')">
+                    <span class="download-icon">📜</span>
+                    <span class="download-label">Entrada Linear</span>
+                    <span class="download-file">entrada-linear.html</span>
+                </button>
+                <button class="download-card" onclick="baixarTemplateEntradaAtual('typst')">
+                    <span class="download-icon">📝</span>
+                    <span class="download-label">Entrada Typst</span>
+                    <span class="download-file">entrada.typ</span>
+                </button>
+            </div>
+            
+            <!-- CSS -->
+            <h4>🎨 CSS</h4>
+            <div class="download-grid">
+                <button class="download-card" onclick="baixarCSSAtual('entrada-card')">
+                    <span class="download-icon">🎨</span>
+                    <span class="download-label">CSS Card</span>
+                    <span class="download-file">entrada-card.css</span>
+                </button>
+                <button class="download-card" onclick="baixarCSSAtual('entrada-linear')">
+                    <span class="download-icon">🎨</span>
+                    <span class="download-label">CSS Linear</span>
+                    <span class="download-file">entrada-linear.css</span>
+                </button>
+            </div>
+            
+            <!-- Informação -->
+            <div style="margin-top: 20px; padding: 12px; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px;">
+                <p style="font-size: 13px; color: #0369a1; margin: 0;">
+                    💡 <strong>Dica:</strong> Após editar os templates, carregue-os nas abas HTML ou Typst. 
+                    Use o botão <strong>↺ Padrão</strong> para voltar ao template original quando necessário.
+                </p>
+            </div>
+        </div>
+    </div>
+</dialog>
+
+<!-- Modal de Edição de Entradas -->
+<div class="modal-overlay-editor" id="modalEditorOverlay" style="display: none;" onclick="fecharModalEditor()">
+    <div class="modal-editor" onclick="event.stopPropagation()">
+        <div class="modal-editor-header">
+            <h3>📝 Editor de Entradas</h3>
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <span id="editorCounter" style="font-size: 12px; color: var(--text-muted);">0 itens</span>
+                <button class="btn btn-sm btn-outline" onclick="verificarMidiasNoEditor()">🔍 Mídias</button>
+                <button class="btn btn-sm btn-outline" onclick="verificarCamposNoEditor()">⚠️ Campos</button>
+                <button class="btn btn-sm btn-filter" id="btnFiltrarErros" onclick="toggleFiltroErros()" style="background:#fef3c7; border-color:#f59e0b; color:#92400e;">⚠️ Filtrar erros (0)</button>
+                <button class="btn btn-sm btn-success" onclick="exportarCSV(); event.stopPropagation();">📥 CSV</button>
+                <button class="btn btn-sm btn-outline" onclick="fecharModalEditor()">✕ Fechar</button>
+            </div>
+        </div>
+        <div class="modal-editor-body">
+            <div class="editor-sidebar">
+                <input type="text" class="search-input" id="editorSearch" placeholder="🔍 Buscar palavra..." oninput="filtrarListaEditor()">
+                <div class="editor-list" id="editorListaItens"></div>
+            </div>
+            <div class="editor-form" id="editorFormContainer">
+                <div id="editorEmptyState" class="editor-empty-state">
+                    <h3>Selecione um item na lista</h3>
+                    <p>Clique em uma palavra para editar suas propriedades.</p>
+                </div>
+                <div id="editorFormContent" style="display: none;">
+                    <div class="tabs">
+                        <button class="tab-btn active" onclick="switchTabEditor(event, 'etab-dados')">Dados</button>
+                        <button class="tab-btn" onclick="switchTabEditor(event, 'etab-vars')">Variações</button>
+                        <button class="tab-btn" onclick="switchTabEditor(event, 'etab-exs')">Exemplos</button>
+                        <button class="tab-btn" onclick="switchTabEditor(event, 'etab-imgs')">Imagens</button>
+                        <button class="tab-btn" onclick="switchTabEditor(event, 'etab-video')">Vídeos</button>
+                    </div>
+                    <div id="etab-dados" class="tab-content active">
+                        <div class="grid-row">
+                            <div class="form-group"><label>Item Lexical *</label><input type="text" id="einp_ITEM_LEXICAL"></div>
+                            <div class="form-group"><label>Classe Gramatical</label><input type="text" id="einp_CLASSE_GRAMATICAL"></div>
+                        </div>
+                        <div class="grid-row">
+                            <div class="form-group"><label>Campo Semântico *</label><input type="text" id="einp_CAMPO_SEMANTICO"></div>
+                            <div class="form-group"><label>Sub-Campo Semântico</label><input type="text" id="einp_SUB_CAMPO_SEMANTICO"></div>
+                        </div>
+                        <div class="grid-row">
+                            <div class="form-group"><label>Tradução / Significado *</label><input type="text" id="einp_TRADUCAO_SIGNIFICADO"></div>
+                            <div class="form-group"><label>Itens Relacionados</label><input type="text" id="einp_ITENS_RELACIONADOS"></div>
+                        </div>
+                        <div class="form-group"><label>Descrição</label><textarea id="einp_DESCRICAO"></textarea></div>
+                    </div>
+                    <div id="etab-vars" class="tab-content">
+                        <div id="econtainer-vars"></div>
+                        <button class="btn btn-add" onclick="adicionarBlocoEditor('vars')">+ Variação Lexical</button>
+                    </div>
+                    <div id="etab-exs" class="tab-content">
+                        <div id="econtainer-exs"></div>
+                        <button class="btn btn-add" onclick="adicionarBlocoEditor('exs')">+ Exemplo</button>
+                    </div>
+                    <div id="etab-imgs" class="tab-content">
+                        <div id="econtainer-imgs"></div>
+                        <button class="btn btn-add" onclick="adicionarBlocoEditor('imgs')">+ Imagem</button>
+                    </div>
+                    <div id="etab-video" class="tab-content">
+                        <div class="form-group"><label>Arquivos de Vídeo (| para múltiplos)</label><input type="text" id="einp_ARQUIVO_VIDEO"></div>
+                    </div>
+                    <div style="margin-top: 20px; text-align: right;">
+                        <button class="btn btn-primary" onclick="salvarAlteracoesEditor()">💾 Salvar Alterações</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Relatórios -->
+<div class="modal-overlay" id="modalOverlay">
+    <div class="modal-box" id="modalBox">
+        <h3 id="modalTitle">Detalhes</h3>
+        <pre id="modalContent"></pre>
+        <div class="modal-actions">
+            <button class="btn btn-outline" onclick="fecharModal()">Fechar</button>
+            <button class="btn btn-sm btn-outline" onclick="copiarConteudoModal()">📋 Copiar</button>
+        </div>
+    </div>
+</div>
+
+
+
+<!-- Marked - Markdown para HTML -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+<!-- markdown2typst - Markdown para Typst -->
+<script type="module">
+    try {
+        const module = await import('https://cdn.jsdelivr.net/npm/markdown2typst@0.1.4/+esm');
+        window.markdown2typst = module.default || module.markdown2typst;
+        console.log('✅ markdown2typst carregado com sucesso');
+    } catch (err) {
+        console.warn('⚠️ markdown2typst não carregado:', err.message);
+    }
+</script>
+
+
+
+<!-- Script Principal -->
+<script src="static/js/app.js"></script>
+
+<!-- Script Complementar -->
+<script>
+    let zoomAtual = 1;
+    
+    function ajustarZoom(delta) {
+        zoomAtual = Math.max(0.6, Math.min(2, zoomAtual + delta));
+        document.documentElement.style.setProperty('--zoom', zoomAtual);
+        document.getElementById('zoomLevel').textContent = Math.round(zoomAtual * 100) + '%';
+        localStorage.setItem('csv2dmli-zoom', zoomAtual);
+    }
+    
+    function resetZoom() {
+        zoomAtual = 1;
+        document.documentElement.style.setProperty('--zoom', 1);
+        document.getElementById('zoomLevel').textContent = '100%';
+        localStorage.setItem('csv2dmli-zoom', 1);
+    }
+
+    (function() {
+        const zoomSalvo = localStorage.getItem('csv2dmli-zoom');
+        if (zoomSalvo) {
+            zoomAtual = parseFloat(zoomSalvo);
+            document.documentElement.style.setProperty('--zoom', zoomAtual);
+            document.getElementById('zoomLevel').textContent = Math.round(zoomAtual * 100) + '%';
+        }
+    })();
+
+    // Tabs do modal de customização
+    function switchCustomTab(evt, tabId) {
+        document.querySelectorAll('#modalCustomizacao .custom-tab-content').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('#modalCustomizacao .custom-tab').forEach(t => t.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+        evt.currentTarget.classList.add('active');
+    }
+</script>
+</body>
+</html>

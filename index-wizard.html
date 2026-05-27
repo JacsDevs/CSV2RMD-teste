@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSV2DMLI - Assistente</title>    
+    <!-- Papa Parse -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>  
+    <!-- Fontes -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">   
+    <!-- Estilo Principal -->
+    <link rel="stylesheet" href="static/css/style.css">
+    
+    <style>
+        /* Estilos Exclusivos do Assistente (Wizard) */
+        .wizard-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+            min-height: 70vh;
+            margin-top: 20px;
+            overflow: hidden;
+        }
+        
+        .wizard-stepper {
+            display: flex;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .step-indicator {
+            flex: 1;
+            text-align: center;
+            padding: 16px 10px;
+            font-weight: 600;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-bottom: 3px solid transparent;
+            user-select: none;
+        }
+        
+        .step-indicator:hover {
+            background: rgba(0,0,0,0.02);
+        }
+        
+        .step-indicator.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+            background: white;
+        }
+        
+        .wizard-body {
+            padding: 30px;
+            flex: 1;
+            overflow-y: auto;
+        }
+        
+        .wizard-step {
+            display: none;
+            animation: fadeIn 0.4s ease;
+        }
+        
+        .wizard-step.active {
+            display: block;
+        }
+        
+        .wizard-footer {
+            padding: 20px 30px;
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .step-title-large {
+            font-size: 1.5em;
+            color: var(--text-main);
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        @keyframes fadeIn { 
+            from { opacity: 0; transform: translateY(5px); } 
+            to { opacity: 1; transform: translateY(0); } 
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-layout">
+    <main class="main-panel">
+        <header class="app-header">
+            <h1>CSV2DMLI <span class="badge">Assistente</span></h1>
+            <div class="header-actions">
+                <button class="btn btn-sm btn-outline" onclick="carregarEstado()">📂 Carregar</button>
+                <button class="btn btn-sm btn-primary" onclick="salvarEstado()">💾 Salvar</button>
+                <button class="btn btn-sm btn-custom" onclick="document.getElementById('modalCustomizacao').showModal()">⚙️ Customização</button>
+                <button class="btn btn-sm btn-new-project" onclick="limparMemoria()" title="Limpar tudo e começar um novo projeto">
+                    <span class="btn-icon">🗑️</span>
+                    <span class="btn-text">Novo Projeto</span>
+                </button>
+            </div>
+        </header>
+
+        <div class="scroll-content">
+            <!-- Status Geral -->
+            <div class="status-grid">
+                <div class="status-card" id="statusCsvCard"><span class="label">📊 Base</span><span class="value" id="statusCsv">Pendente</span></div>
+                <div class="status-card" id="statusAudioCard"><span class="label">🎵 Áudios</span><span class="value" id="statusAudio">0</span></div>
+                <div class="status-card" id="statusImagemCard"><span class="label">🖼️ Imagens</span><span class="value" id="statusImagem">0</span></div>
+                <div class="status-card" id="statusVideoCard"><span class="label">🎬 Vídeos</span><span class="value" id="statusVideo">0</span></div>
+            </div>
+
+            <!-- WIZARD CONTAINER -->
+            <div class="wizard-container">
+                
+                <!-- Stepper Superior -->
+                <div class="wizard-stepper">
+                    <div class="step-indicator active" id="indicator1" onclick="irParaPasso(1)">1. Fonte de Dados</div>
+                    <div class="step-indicator" id="indicator2" onclick="irParaPasso(2)">2. Mídias e Validação</div>
+                    <div class="step-indicator" id="indicator3" onclick="irParaPasso(3)">3. Metadados</div>
+                    <div class="step-indicator" id="indicator4" onclick="irParaPasso(4)">4. Estrutura</div>
+                    <div class="step-indicator" id="indicator5" onclick="irParaPasso(5)">5. Exportar</div>
+                </div>
+                
+                <!-- Corpo das Etapas -->
+                <div class="wizard-body">
+                    
+                    <!-- PASSO 1 -->
+                    <div class="wizard-step active" id="step1">
+                        <h2 class="step-title-large">📊 <span id="badgeCsv" class="step-badge" style="font-size: 0.5em; vertical-align: middle;">Pendente</span> Fonte de Dados</h2>
+                        <p class="step-desc" style="margin-bottom: 20px;">Selecione a pasta do projeto (recomendado) ou apenas o arquivo CSV.</p>
+                        
+                        <div class="drop-zone drop-zone-highlight" id="pastaProjetoDropZone">
+                            <p>📁 <b>Selecionar Pasta do Projeto</b></p>
+                            <p class="drop-desc">Carrega CSV, mídias e configurações automaticamente</p>
+                            <input type="file" id="filePastaProjeto" webkitdirectory multiple style="display:none">
+                        </div>
+
+                        <div class="divider-text" style="margin: 20px 0;"><span>ou</span></div>
+
+                        <div class="drop-zone" id="csvDropZone">
+                            <p>📄 Arraste o <b>dicionario.csv</b> aqui</p>
+                            <input type="file" id="fileCsv" accept=".csv" style="display:none">
+                        </div>
+                        
+                        <div class="mini-stats" style="margin-top: 15px;">
+                            <span id="csvLinhas">0 linhas</span>
+                            <span id="csvColunas">0 colunas</span>
+                            <span id="csvCategorias">0 categorias</span>
+                        </div>
+                    </div>
+
+                    <!-- PASSO 2 -->
+                    <div class="wizard-step" id="step2">
+                        <h2 class="step-title-large">📁 <span id="badgeMidias" class="step-badge" style="font-size: 0.5em; vertical-align: middle;">Pendente</span> Mídias e Validação</h2>
+                        <p class="step-desc" style="margin-bottom: 20px;">Adicione recursos multimídia ou valide sua base de dados atual.</p>
+                        
+                        <div class="media-grid-simple">
+                            <div class="media-panel" id="panelAudio" onclick="carregarPasta('audio')">
+                                <span class="media-icon">🎵</span><span class="media-title">Áudio</span><span class="media-count" id="countAudio">0</span><span class="media-label">arquivos</span>
+                            </div>
+                            <div class="media-panel" id="panelImagem" onclick="carregarPasta('imagem')">
+                                <span class="media-icon">🖼️</span><span class="media-title">Imagens</span><span class="media-count" id="countImagem">0</span><span class="media-label">arquivos</span>
+                            </div>
+                            <div class="media-panel" id="panelVideo" onclick="carregarPasta('video')">
+                                <span class="media-icon">🎬</span><span class="media-title">Vídeos</span><span class="media-count" id="countVideo">0</span><span class="media-label">arquivos</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Teste de Motor de Busca -->
+                        <div style="margin-top: 25px; background: #f0fdf4; border: 1px solid #bbf7d0; padding: 15px; border-radius: 8px;">
+                            <strong style="color: #166534;"><i class="fas fa-search"></i> Testar Motor de Busca (Fuzzy + Global)</strong>
+                            <p style="font-size: 12px; color: #15803d; margin: 5px 0 10px;">Busca tolerante a erros por termos, traduções e descrições.</p>
+                            <div style="display: flex; gap: 8px;">
+                                <input type="text" id="inputTesteBusca" placeholder="Ex: passaro, cachorro..." style="flex: 1; padding: 8px; border: 1px solid #86efac; border-radius: 4px;">
+                                <button class="btn btn-primary" onclick="testarBusca()">Buscar</button>
+                            </div>
+                            <div id="resultadoBuscaTeste" style="margin-top: 10px; font-size: 0.9em; max-height: 150px; overflow-y: auto;"></div>
+                        </div>
+
+                        <div style="display: flex; gap: 10px; margin-top: 15px; background: #f8fafc; padding: 15px; border-radius: 8px;">
+                            <div style="flex: 1;">
+                                <strong>Checagem do Dicionário (Validador de Dados)</strong>
+                                <p style="font-size: 12px; color: var(--text-muted); margin: 5px 0;">Identifique referências quebradas e erros estruturais.</p>
+                            </div>
+                            <button class="btn btn-outline" onclick="validarTudo()" style="border-color: #3b82f6; color: #3b82f6;">🔍 Gerar Relatório</button>
+                        </div>
+                    </div>
+
+                    <!-- PASSO 3 -->
+                    <div class="wizard-step" id="step3">
+                        <h2 class="step-title-large">📝 <span id="badgeMeta" class="step-badge" style="font-size: 0.5em; vertical-align: middle;">Pendente</span> Metadados Básicos</h2>
+                        <p class="step-desc" style="margin-bottom: 20px;">Preencha as informações do produto final.</p>
+                        
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label>Título do Site (HTML)</label>
+                                <input type="text" id="metaHtml" value="Meu Dicionário Interativo">
+                            </div>
+                            <div class="form-group">
+                                <label>Título do PDF / Livro</label>
+                                <input type="text" id="metaPdf" value="Meu Dicionário">
+                            </div>
+                            <div class="form-group">
+                                <label>Autor(es)</label>
+                                <input type="text" id="metaAutor">
+                            </div>
+                            <div class="form-group">
+                                <label>Ano</label>
+                                <input type="text" id="metaAno">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group" style="margin-top: 15px;">
+                            <label>Introdução (Markdown)</label>
+                            <textarea id="introMarkdown" placeholder="Escreva a introdução em Markdown..." rows="8" style="font-family: 'Fira Code', monospace; font-size: 13px;"></textarea>
+                            <div style="display: flex; gap: 8px; margin-top: 8px;">
+                                <button class="btn btn-sm btn-outline" onclick="previewIntroducao()" type="button">👁️ Pré-visualizar</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PASSO 4 -->
+                    <div class="wizard-step" id="step4">
+                        <h2 class="step-title-large">🗂️ <span id="badgeEstrutura" class="step-badge" style="font-size: 0.5em; vertical-align: middle;">Automático</span> Estrutura & Ordenação</h2>
+                        <p class="step-desc" style="margin-bottom: 20px;">Configure a organização das entradas no layout de saída.</p>
+                        
+                        <div class="estrutura-grid">
+                            <div>
+                                <h4>Ordem Alfabética</h4>
+                                <label class="toggle-label">
+                                    <div class="toggle-switch">
+                                        <input type="checkbox" id="swAlpha" checked>
+                                        <div class="toggle-slider"></div>
+                                    </div>
+                                    Manter ordem alfabética automática
+                                </label>
+                                <p id="instrucaoAlpha" style="display: none; font-size: 0.9em; color: #666; margin: 10px 0;">Selecione os campos onde quer manter a ordem original do CSV:</p>
+                                <div class="checkbox-grid" id="gridAlpha" style="display: none;"><span class="placeholder-text">Carregue o CSV primeiro</span></div>
+                            </div>
+                            <div>
+                                <h4>Ordem dos Capítulos</h4>
+                                <label class="toggle-label">
+                                    <div class="toggle-switch">
+                                        <input type="checkbox" id="swSemantic" checked>
+                                        <div class="toggle-slider"></div>
+                                    </div>
+                                    Ordenação manual
+                                </label>
+                                <p id="instrucaoSemantic" style="display: none; font-size: 0.9em; color: #666; margin: 10px 0;">Segure e arraste para ordenar os campos semânticos.</p>                            
+                                <div class="sortable-list" id="gridSemantic"><span class="placeholder-text">Carregue o CSV primeiro</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PASSO 5 -->
+                    <div class="wizard-step" id="step5">
+                        <h2 class="step-title-large">✅ Exportação</h2>
+                        <p class="step-desc" style="margin-bottom: 20px;">Escolha o formato no qual deseja compilar seus dados.</p>
+                        
+                        <div class="export-options" style="margin-bottom: 25px;">
+                            <!-- Seleção de Template -->
+                            <div class="form-group" style="margin-bottom: 20px; background: white; padding: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
+                                <label style="display: flex; align-items: center; gap: 8px; color: var(--primary);">
+                                    <i class="fas fa-palette"></i> Escolha o Layout Visual (Template)
+                                </label>
+                                <p style="font-size: 0.85em; color: var(--text-muted); margin-bottom: 12px;">Selecione como as informações serão estruturadas nos arquivos HTML finais.</p>
+                                <select id="templateExportacaoSelect" style="border-color: #cbd5e1;">
+                                    <option value="card">🃏 Visualização em Cards (Blocos independentes)</option>
+                                    <option value="linear">📜 Visualização Linear (Dicionário Clássico/Lista)</option>
+                                </select>
+                            </div>
+
+                            <label class="toggle-label mb-3" style="display: flex; align-items: center; gap: 10px; padding: 12px; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; margin-bottom: 20px;">
+                                <div class="toggle-switch">
+                                    <input type="checkbox" id="swMidia" checked>
+                                    <div class="toggle-slider"></div>
+                                </div>
+                                <div>
+                                    <strong>📦 Embutir mídias no HTML (Base64)</strong>
+                                    <p style="font-size: 0.85em; color: #0369a1; margin: 4px 0 0 0;">Ideal para compartilhar o site como arquivo único sem precisar enviar pastas separadas.</p>
+                                </div>
+                            </label>
+                        </div>
+                        
+                        <div class="export-grid">
+                            <button class="export-btn export-html" onclick="exportarHTML()"><span class="export-icon">🌐</span><span class="export-label">Gerar Site HTML</span></button>
+                            <button class="export-btn export-typst" onclick="exportarApenasTypst()"><span class="export-icon">📘</span><span class="export-label">Gerar Typst</span></button>
+                            <button class="export-btn export-pdf" onclick="exportarTypstCompleto()"><span class="export-icon">📑</span><span class="export-label">Gerar PDF</span></button>
+                            <button class="export-btn export-csv" onclick="exportarCSV()"><span class="export-icon">📊</span><span class="export-label">Baixar CSV Editado</span></button>
+                            <button class="export-btn export-json" onclick="exportarJSON()"><span class="export-icon">🗄️</span><span class="export-label">Banco JSON</span></button>
+                        </div>
+                        
+                        <!-- Progresso do Web Worker -->
+                        <div id="workerProgressContainer" style="display: none; margin-top: 20px; background: #eef2ff; border: 1px solid #c7d2fe; padding: 15px; border-radius: 8px;">
+                            <h4 style="margin-top: 0; margin-bottom: 10px; color: #4338ca;">⚙️ Web Worker Trabalhando...</h4>
+                            <div style="width: 100%; background: #e0e7ff; border-radius: 10px; height: 12px; overflow: hidden;">
+                                <div id="workerProgressBar" style="width: 0%; height: 100%; background: #4f46e5; transition: width 0.2s ease;"></div>
+                            </div>
+                            <p id="workerProgressText" style="margin-top: 8px; font-size: 0.85em; color: #4f46e5; text-align: center;">Convertendo mídias para Base64: 0/0</p>
+                        </div>
+                    </div>
+                    
+                </div>
+                
+                <!-- Footer Actions -->
+                <div class="wizard-footer">
+                    <button id="btnPrev" class="btn btn-outline" disabled onclick="passoAnterior()">← Passo Anterior</button>
+                    <button id="btnNext" class="btn btn-primary" onclick="proximoPasso()">Próximo Passo →</button>
+                </div>
+            </div>
+            
+        </div>
+    </main>
+
+    <!-- ============================================ -->
+    <!-- PAINEL DIREITO (TERMINAL) -->
+    <!-- ============================================ -->
+    <aside class="terminal-panel">
+        <div class="terminal-header">
+            <h3><span class="terminal-dot">●</span> Terminal</h3>
+            <div class="terminal-actions">
+                <span onclick="copiarTerminal()">Copiar</span>
+                <span onclick="limparTerminal()">Limpar</span>
+            </div>
+        </div>
+        <div class="terminal" id="terminal"></div>
+    </aside>
+</div>
+
+<!-- Controle de Zoom -->
+<div class="zoom-control">
+    <button onclick="ajustarZoom(-0.1)">🔍−</button>
+    <span class="zoom-level" id="zoomLevel">100%</span>
+    <button onclick="ajustarZoom(0.1)">🔍+</button>
+    <button onclick="resetZoom()">↺</button>
+</div>
+
+<!-- MODAL CUSTOMIZAÇÃO E EDITOR (Escondidos mas mantidos para compatibilidade) -->
+<dialog id="modalCustomizacao" class="modal-custom">
+    <!-- ... Todo o seu modal de customização antigo permanece inalterado para não quebrar IDs ... -->
+    <div class="modal-custom-header">
+        <h2>⚙️ Customização Avançada e Templates</h2>
+        <button class="btn-close" onclick="document.getElementById('modalCustomizacao').close()">✕</button>
+    </div>
+    <div class="modal-custom-body">
+        <div class="custom-tabs">
+            <button class="custom-tab active" onclick="switchCustomTab(event, 'tab-html')">🌐 HTML</button>
+            <button class="custom-tab" onclick="switchCustomTab(event, 'tab-typst')">📘 Typst</button>
+            <button class="custom-tab" onclick="switchCustomTab(event, 'tab-geral')">⚙️ Geral</button>
+            <button class="custom-tab" onclick="switchCustomTab(event, 'tab-download')">📥 Download</button>
+        </div>
+        <div id="tab-html" class="custom-tab-content active">
+            <div class="form-group">
+                <label>Estilo de Exibição</label>
+                <select id="templateEntradaSelect" onchange="templateEntradaAtivo = this.value; localStorage.setItem('csv2dmli_templateEntradaAtivo', this.value);" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border-color);">
+                    <option value="card">🃏 Cards</option>
+                    <option value="linear">📜 Linear</option>
+                </select>
+            </div>
+            <!-- Templates DropZones -->
+            <div class="drop-zone" id="templateHtmlZone"><p><strong>HTML Base (Cards)</strong><br><span style="font-size: 0.8em; color: var(--text-muted);">Arraste o template.html</span></p><input type="file" id="fileTemplateHtml" accept=".html" style="display:none"><div id="templateHtmlStatus"></div></div>
+            <div class="drop-zone" id="templateEntradaHtmlZone"><p><strong>Entrada (Cards)</strong><br><span style="font-size: 0.8em; color: var(--text-muted);">Arraste o entrada.html</span></p><input type="file" id="fileTemplateEntradaCardHtml" accept=".html" style="display:none"><div id="templateEntradaCardHtmlStatus"></div></div>
+            
+            <div class="drop-zone" id="templateHtmlLinearZone"><p><strong>HTML Base (Linear)</strong><br><span style="font-size: 0.8em; color: var(--text-muted);">Arraste o template.html</span></p><input type="file" id="fileTemplateHtmlLinear" accept=".html" style="display:none"><div id="templateHtmlLinearStatus"></div></div>
+            <div class="drop-zone" id="templateEntradaLinearHtmlZone"><p><strong>Entrada (Linear)</strong><br><span style="font-size: 0.8em; color: var(--text-muted);">Arraste o entrada.html</span></p><input type="file" id="fileTemplateEntradaLinearHtml" accept=".html" style="display:none"><div id="templateEntradaLinearHtmlStatus"></div></div>
+            
+            <div class="drop-zone" id="templateCssCardZone"><p><strong>Estilos Globais (CSS)</strong><br><span style="font-size: 0.8em; color: var(--text-muted);">Arraste estilos-globais.css</span></p><input type="file" id="fileTemplateCssCard" accept=".css" style="display:none"><div id="templateCssCardStatus"></div></div>
+            <div class="drop-zone" id="templateCssLinearZone" style="display:none;"><input type="file" id="fileTemplateCssLinear" accept=".css" style="display:none"><div id="templateCssLinearStatus"></div></div>
+        </div>
+        <div id="tab-typst" class="custom-tab-content">
+            <h3 style="margin-bottom: 15px; color: var(--text-main);">📘 Templates Typst (Para PDFs)</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div class="drop-zone" id="templateTypstZone"><p><strong>Template Principal (Typst)</strong><br><span style="font-size: 0.8em; color: var(--text-muted);">Arraste o template.typ</span></p><input type="file" id="fileTemplateTypst" accept=".typ" style="display:none"><div id="templateTypstStatus"></div></div>
+                <div class="drop-zone" id="templateEntradaTypstZone"><p><strong>Entrada (Typst)</strong><br><span style="font-size: 0.8em; color: var(--text-muted);">Arraste o entrada.typ</span></p><input type="file" id="fileTemplateEntradaTypst" accept=".typ" style="display:none"><div id="templateEntradaTypstStatus"></div></div>
+            </div>
+        </div>
+        <div id="tab-geral" class="custom-tab-content">
+            <h3 style="margin-bottom: 15px; color: var(--text-main);">⚙️ Configurações Gerais e Metadados</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div class="drop-zone" id="configFullDropZone"><p><strong>Configuração Completa</strong><br><span style="font-size: 0.8em; color: var(--text-muted);">Importar arquivo config.json</span></p><input type="file" id="fileConfigFull" accept=".json" style="display:none"></div>
+                <div class="drop-zone" id="textosDropZone"><p><strong>Textos de Interface</strong><br><span style="font-size: 0.8em; color: var(--text-muted);">Importar arquivo textos.json</span></p><input type="file" id="fileTextos" accept=".json" style="display:none"></div>
+                <div class="drop-zone" id="introHtmlDropZone"><p><strong>Introdução do Dicionário (HTML)</strong><br><span style="font-size: 0.8em; color: var(--text-muted);">Documento .md ou .html</span></p><input type="file" id="fileIntroHtml" accept=".html,.md" style="display:none"></div>
+                <div class="drop-zone" id="introPdfDropZone"><p><strong>Introdução do Dicionário (PDF)</strong><br><span style="font-size: 0.8em; color: var(--text-muted);">Documento Typst para o inicio do PDF</span></p><input type="file" id="fileIntroPdf" accept=".typ" style="display:none"></div>
+                <div class="drop-zone" id="referenciaDropZone"><p><strong>Referências Bibliográficas</strong><br><span style="font-size: 0.8em; color: var(--text-muted);">Importar referências</span></p><input type="file" id="fileReferencia" style="display:none"></div>
+                <div class="drop-zone" id="alfabetoDropZone"><p><strong>Ordem Alfabética Customizada</strong><br><span style="font-size: 0.8em; color: var(--text-muted);">Defina o próprio alfabeto para ordenação</span></p><input type="file" id="fileAlfabeto" style="display:none"><div id="alfabetoPreview" style="display:none;"></div><div id="alfabetoActions" style="display:none;"></div></div>
+            </div>
+        </div>
+        <div id="tab-download" class="custom-tab-content">
+            <h3 style="margin-bottom: 15px; color: var(--text-main);">📥 Baixar Templates Originais</h3>
+            <p style="font-size: 0.9em; color: var(--text-muted); margin-bottom: 20px;">Você pode baixar os templates padrão do sistema, editá-los em seu computador e depois fazer o upload nas abas "HTML" e "Typst".</p>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <button class="btn btn-outline" style="justify-content: flex-start;" onclick="baixarArquivoPadrao('config/templates/estilos-globais.css', 'estilos-globais.css')">🎨 Estilos Globais (CSS)</button>
+                <button class="btn btn-outline" style="justify-content: flex-start;" onclick="baixarArquivoPadrao('config/templates/html-cards/template.html', 'cards-template.html')">🃏 Cards: template.html</button>
+                <button class="btn btn-outline" style="justify-content: flex-start;" onclick="baixarArquivoPadrao('config/templates/html-cards/entrada.html', 'cards-entrada.html')">🃏 Cards: entrada.html</button>
+                <button class="btn btn-outline" style="justify-content: flex-start;" onclick="baixarArquivoPadrao('config/templates/html-linear/template.html', 'linear-template.html')">📜 Linear: template.html</button>
+                <button class="btn btn-outline" style="justify-content: flex-start;" onclick="baixarArquivoPadrao('config/templates/html-linear/entrada.html', 'linear-entrada.html')">📜 Linear: entrada.html</button>
+                <button class="btn btn-outline" style="justify-content: flex-start;" onclick="baixarArquivoPadrao('config/templates/typst/template.typ', 'typst-template.typ')">📘 Typst: template.typ</button>
+                <button class="btn btn-outline" style="justify-content: flex-start;" onclick="baixarArquivoPadrao('config/templates/typst/entrada.typ', 'typst-entrada.typ')">📘 Typst: entrada.typ</button>
+            </div>
+        </div>
+    </div>
+</dialog>
+
+<!-- Modal Editor e Outros -->
+<div class="modal-overlay-editor" id="modalEditorOverlay" style="display: none;" onclick="fecharModalEditor()">
+    <div class="modal-editor" onclick="event.stopPropagation()">
+        <div class="modal-editor-header">
+            <h3>📝 Editor</h3>
+            <div style="display: flex; gap: 8px;"><span id="editorCounter">0 itens</span><button id="btnFiltrarErros"></button><input id="editorSearch"></div>
+        </div>
+        <div class="modal-editor-body">
+            <div class="editor-sidebar"><div id="editorListaItens"></div></div>
+            <div class="editor-form" id="editorFormContainer">
+                <div id="editorEmptyState"></div>
+                <div id="editorFormContent">
+                    <input id="einp_ITEM_LEXICAL"><input id="einp_CLASSE_GRAMATICAL"><input id="einp_CAMPO_SEMANTICO"><input id="einp_SUB_CAMPO_SEMANTICO"><input id="einp_TRADUCAO_SIGNIFICADO"><input id="einp_ITENS_RELACIONADOS"><textarea id="einp_DESCRICAO"></textarea><input id="einp_ARQUIVO_VIDEO">
+                    <div id="econtainer-vars"></div><div id="econtainer-exs"></div><div id="econtainer-imgs"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+    </div>
+</div>
+<div class="modal-overlay" id="modalOverlay">
+    <div class="modal-box" id="modalBox" style="max-height: 80vh; overflow-y: auto;">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 15px; margin-bottom: 15px;">
+            <h3 id="modalTitle" style="margin: 0; color: var(--primary);"></h3>
+            <button onclick="document.getElementById('modalOverlay').style.display='none'" style="background:none; border:none; font-size: 20px; cursor:pointer;">✕</button>
+        </div>
+        <div id="modalContent" style="font-family: 'Inter', sans-serif;"></div>
+    </div>
+</div>
+
+<!-- Dependências Externas -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script type="module">
+    try {
+        const module = await import('https://cdn.jsdelivr.net/npm/markdown2typst@0.1.4/+esm');
+        window.markdown2typst = module.default || module.markdown2typst;
+    } catch (err) {}
+</script>
+
+<script type="module">
+    import GerenciadorDados from './src/nucleo/gerenciadorDados.js';
+    import CarregadorPasta from './src/utils/carregadorPasta.js';
+    import ModuloExportacao from './src/modulos/moduloExportacao.js';
+    import ValidadorDados from './src/modulos/validadorDados.js';
+    import Configurador from './src/utils/configurador.js';
+    
+    // 1. Criar instâncias do sistema modular
+    window.configurador = new Configurador();
+    await window.configurador.carregar();
+    window.sistema = new GerenciadorDados(window.configurador);
+    window.carregadorPasta = null;
+    window.exportador = null;
+    window.validador = new ValidadorDados(window.sistema);
+    
+    // 2. Funções Globais de Compatibilidade para a Interface do Assistente
+    window.salvarEstado = () => console.log("Estado salvo");
+    window.carregarEstado = () => console.log("Estado carregado");
+    
+    window.baixarArquivoPadrao = async function(url, nomeSalvo) {
+        try {
+            const res = await fetch(url);
+            if (!res.ok) throw new Error('Arquivo não encontrado no servidor local.');
+            const blob = await res.blob();
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = nomeSalvo;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        } catch(e) {
+            alert('Não foi possível baixar o template: ' + e.message);
+        }
+    };
+    
+    window.validarTudo = function() {
+        const diagnostico = window.validador.diagnosticar();
+        const html = window.validador.gerarRelatorioHtml(diagnostico);
+        document.getElementById('modalTitle').textContent = 'Relatório de Validação e Cruzamento';
+        document.getElementById('modalContent').innerHTML = html;
+        document.getElementById('modalOverlay').style.display = 'flex';
+    };
+    
+    window.testarBusca = function() {
+        const termo = document.getElementById('inputTesteBusca').value;
+        const resContainer = document.getElementById('resultadoBuscaTeste');
+        if (!termo) {
+            resContainer.innerHTML = '<span style="color:#ef4444;">Digite um termo para buscar.</span>';
+            return;
+        }
+        
+        const resultados = window.sistema.buscarPorTermo(termo, { fuzzy: true, global: true });
+        if (resultados.length === 0) {
+            resContainer.innerHTML = '<span style="color:#64748b;">Nenhum resultado encontrado.</span>';
+        } else {
+            let html = `<strong>${resultados.length} resultados encontrados:</strong><ul style="margin-top: 5px; padding-left: 20px;">`;
+            resultados.slice(0, 5).forEach(item => {
+                html += `<li><b>${item._TERMO_PRINCIPAL || '???'}</b> (Classe: ${item.CLASSE_GRAMATICAL || '?'})</li>`;
+            });
+            if (resultados.length > 5) html += `<li>... e mais ${resultados.length - 5} itens</li>`;
+            html += `</ul>`;
+            resContainer.innerHTML = html;
+        }
+    };
+
+    window.previewIntroducao = () => alert("Preview em migração.");
+    window.exportarCSV = () => alert("Exportação de CSV em migração.");
+    window.exportarJSON = () => alert("Exportação de JSON em migração.");
+    
+    // Ouvinte do Web Worker (Passo 3)
+    window.addEventListener('exportacaoProgresso', (e) => {
+        const { progresso, total } = e.detail;
+        const container = document.getElementById('workerProgressContainer');
+        const bar = document.getElementById('workerProgressBar');
+        const text = document.getElementById('workerProgressText');
+        
+        container.style.display = 'block';
+        const percent = Math.round((progresso / total) * 100);
+        bar.style.width = percent + '%';
+        text.textContent = `Convertendo mídias para Base64: ${progresso}/${total} (${percent}%)`;
+        
+        if (progresso >= total) {
+            setTimeout(() => { container.style.display = 'none'; bar.style.width = '0%'; }, 1500);
+        }
+    });
+    
+    window.limparMemoria = function() {
+        if(confirm("Deseja limpar todos os dados do projeto atual?")) {
+            window.sistema.limpar();
+            console.log("Sistema limpo!");
+        }
+    };
+    
+    window.carregarPasta = function(tipo) {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.multiple = true;
+        if (tipo === 'audio') input.accept = 'audio/*';
+        if (tipo === 'imagem') input.accept = 'image/*';
+        if (tipo === 'video') input.accept = 'video/*';
+        
+        input.onchange = e => {
+            if (e.target.files.length > 0) window.sistema.adicionarMidias(e.target.files);
+        };
+        input.click();
+    };
+    
+    window.exportarHTML = async function() {
+        if (!window.exportador) return alert('Exportador não inicializado!');
+        const embutir = document.getElementById('swMidia')?.checked || false;
+        
+        // Pega do novo select do Passo 5, com fallback pro antigo do modal
+        const selectWizard = document.getElementById('templateExportacaoSelect');
+        const selectCustom = document.getElementById('templateEntradaSelect');
+        const formato = selectWizard ? selectWizard.value : (selectCustom ? selectCustom.value : 'card');
+        
+        if (formato === 'linear') {
+            await window.exportador.exportarHtmlLinear({ embutirMidias: embutir });
+        } else {
+            await window.exportador.exportarHtmlCards({ embutirMidias: embutir });
+        }
+    };
+    
+    window.exportarApenasTypst = async function() {
+        if (!window.exportador) return alert('Exportador não inicializado!');
+        const typst = await window.exportador.exportarTypst();
+        window.exportador.salvarArquivo(typst, 'dicionario.typ', 'text/plain;charset=utf-8');
+    };
+    
+    window.exportarTypstCompleto = async function() {
+        if (!window.exportador) return alert('Exportador não inicializado!');
+        await window.exportador.exportarPdf({}, 'dicionario.pdf');
+    };
+    
+    // 3. Inicialização do novo núcleo
+    async function iniciar() {
+        await window.sistema.inicializar();
+        window.carregadorPasta = new CarregadorPasta(window.sistema.configurador, window.sistema.vfs, window.sistema);
+        window.exportador = new ModuloExportacao(window.sistema);
+        
+        // Intercepta para Visualizar na aba em vez de baixar o arquivo
+        window.exportador.salvarArquivoBlob = function(blob, nomeArquivo) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.target = '_blank';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 5000);
+            console.log(`👁️ Visualizando: ${nomeArquivo}`);
+        };
+        
+        await window.exportador.inicializar();
+        
+        // Vincula botões HTML aos Eventos do Carregador de Arquivos (Upload)
+        document.getElementById('filePastaProjeto').addEventListener('change', async e => {
+            if (e.target.files.length > 0) {
+                document.getElementById('statusCsv').textContent = 'Processando pasta...';
+                await window.carregadorPasta.carregarPasta(e.target.files);
+            }
+        });
+        document.getElementById('fileCsv').addEventListener('change', async e => {
+            if (e.target.files.length > 0) {
+                document.getElementById('statusCsv').textContent = 'Processando CSV...';
+                await window.sistema.carregarPlanilha(e.target.files[0]);
+            }
+        });
+        // Engatilha os inputs escondidos nas DropZones
+        document.getElementById('pastaProjetoDropZone').addEventListener('click', () => document.getElementById('filePastaProjeto').click());
+        document.getElementById('csvDropZone').addEventListener('click', () => document.getElementById('fileCsv').click());
+        
+        // Atualizador de interface do Wizard (Polling)
+        setInterval(() => {
+            const stats = window.sistema.obterEstatisticas();
+            if (!stats) return;
+            
+            if (stats.disponivel) {
+                document.getElementById('statusCsv').textContent = `${stats.entradas || 0} entradas`;
+                document.getElementById('csvLinhas').textContent = `${stats.entradas || 0} entradas`;
+                document.getElementById('badgeCsv').textContent = '✅ Carregado';
+                document.getElementById('badgeCsv').className = 'step-badge active badge-ok';
+            } else {
+                document.getElementById('statusCsv').textContent = 'Pendente';
+                document.getElementById('csvLinhas').textContent = '0 linhas';
+                document.getElementById('badgeCsv').textContent = 'Pendente';
+                document.getElementById('badgeCsv').className = 'step-badge';
+            }
+            
+            const m = stats.midias || {};
+            const au = m.audio || 0, ig = m.imagem || 0, vi = m.video || 0;
+            
+            document.getElementById('countAudio').textContent = au;
+            document.getElementById('statusAudio').textContent = au;
+            document.getElementById('countImagem').textContent = ig;
+            document.getElementById('statusImagem').textContent = ig;
+            document.getElementById('countVideo').textContent = vi;
+            document.getElementById('statusVideo').textContent = vi;
+            
+            const totMidia = au + ig + vi;
+            const bm = document.getElementById('badgeMidias');
+            if (totMidia > 0) {
+                bm.textContent = `✅ ${totMidia} arquivos`;
+                bm.className = 'step-badge active badge-ok';
+            } else {
+                bm.textContent = 'Pendente';
+                bm.className = 'step-badge';
+            }
+        }, 1000);
+    }
+    
+    iniciar();
+</script>
+
+<!-- Lógica de Interface: Assistente (Wizard) & Zoom -->
+<script>
+    // ===================================
+    // LÓGICA DO ASSISTENTE
+    // ===================================
+    let passoAtual = 1;
+    const totalPassos = 5;
+
+    function irParaPasso(passo) {
+        // Esconde todos
+        document.querySelectorAll('.wizard-step').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.step-indicator').forEach(el => el.classList.remove('active'));
+        
+        // Mostra o atual
+        document.getElementById(`step${passo}`).classList.add('active');
+        document.getElementById(`indicator${passo}`).classList.add('active');
+        
+        // Controla botões
+        document.getElementById('btnPrev').disabled = (passo === 1);
+        
+        const btnNext = document.getElementById('btnNext');
+        if (passo === totalPassos) {
+            btnNext.style.display = 'none';
+        } else {
+            btnNext.style.display = 'inline-block';
+            btnNext.textContent = 'Próximo Passo →';
+        }
+        
+        passoAtual = passo;
+    }
+
+    function proximoPasso() {
+        if(passoAtual < totalPassos) irParaPasso(passoAtual + 1);
+    }
+
+    function passoAnterior() {
+        if(passoAtual > 1) irParaPasso(passoAtual - 1);
+    }
+    
+    // Intercepta alterações nas tabs do modal antigo
+    function switchCustomTab(evt, tabId) {
+        document.querySelectorAll('#modalCustomizacao .custom-tab-content').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('#modalCustomizacao .custom-tab').forEach(t => t.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+        evt.currentTarget.classList.add('active');
+    }
+
+    // Lógica de Zoom mantida
+    let zoomAtual = 1;
+    function ajustarZoom(delta) {
+        zoomAtual = Math.max(0.6, Math.min(2, zoomAtual + delta));
+        document.documentElement.style.setProperty('--zoom', zoomAtual);
+        document.getElementById('zoomLevel').textContent = Math.round(zoomAtual * 100) + '%';
+        localStorage.setItem('csv2dmli-zoom', zoomAtual);
+    }
+    function resetZoom() {
+        zoomAtual = 1;
+        document.documentElement.style.setProperty('--zoom', 1);
+        document.getElementById('zoomLevel').textContent = '100%';
+        localStorage.setItem('csv2dmli-zoom', 1);
+    }
+    (function() {
+        const zoomSalvo = localStorage.getItem('csv2dmli-zoom');
+        if (zoomSalvo) {
+            zoomAtual = parseFloat(zoomSalvo);
+            document.documentElement.style.setProperty('--zoom', zoomAtual);
+            document.getElementById('zoomLevel').textContent = Math.round(zoomAtual * 100) + '%';
+        }
+        // Inicia no passo 1
+        irParaPasso(1);
+    })();
+</script>
+</body>
+</html>

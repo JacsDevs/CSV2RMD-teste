@@ -1,0 +1,7 @@
+AUTOR(ES)=ROCHA, Victor; GALUCIO, Ana Vilacy; COSTA, Carla;MAKURAP,Povo
+ANO=2026
+TITULO=Dicionário Multimídia Makurap-Português
+VERSAO= Versão 1.0
+LOCAL=Belém
+EDITOR=Museu Paraense Emílio Goeldi
+LINK=https://dicionarios.museu-goeldi.br
