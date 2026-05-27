@@ -289,8 +289,12 @@
                                 </div>
                             </label>
                         </div>
-                        
-                        <div class="export-grid">
+                          <div style="margin-bottom: 25px; padding: 15px; background: #f8fafc; border-radius: 8px; border: 1px solid var(--border-color); text-align: center;">
+                              <button class="btn btn-primary" onclick="abrirModalEditor()" style="width: 100%; font-size: 1.1em; padding: 12px;"><i class="fas fa-edit"></i> 📝 Abrir Editor Visual (Live Preview)</button>
+                              <p style="font-size: 0.85em; color: var(--text-muted); margin-top: 10px;">Edite e pré-visualize suas entradas antes de exportar o arquivo final.</p>
+                          </div>
+                          
+                          <div class="export-grid">
                             <button class="export-btn export-html" onclick="exportarHTML()"><span class="export-icon">🌐</span><span class="export-label">Gerar Site HTML</span></button>
                             <button class="export-btn export-typst" onclick="exportarApenasTypst()"><span class="export-icon">📘</span><span class="export-label">Gerar Typst</span></button>
                             <button class="export-btn export-pdf" onclick="exportarTypstCompleto()"><span class="export-icon">📑</span><span class="export-label">Gerar PDF</span></button>
@@ -419,11 +423,29 @@
         </div>
         <div class="modal-editor-body">
             <div class="editor-sidebar"><div id="editorListaItens"></div></div>
-            <div class="editor-form" id="editorFormContainer">
-                <div id="editorEmptyState"></div>
-                <div id="editorFormContent">
-                    <input id="einp_ITEM_LEXICAL"><input id="einp_CLASSE_GRAMATICAL"><input id="einp_CAMPO_SEMANTICO"><input id="einp_SUB_CAMPO_SEMANTICO"><input id="einp_TRADUCAO_SIGNIFICADO"><input id="einp_ITENS_RELACIONADOS"><textarea id="einp_DESCRICAO"></textarea><input id="einp_ARQUIVO_VIDEO">
-                    <div id="econtainer-vars"></div><div id="econtainer-exs"></div><div id="econtainer-imgs"></div>
+            
+            <div class="editor-split-pane">
+                <div class="editor-form-pane" id="editorFormContainer">
+                    <div id="editorEmptyState"></div>
+                    <div id="editorFormContent">
+                        <input id="einp_ITEM_LEXICAL"><input id="einp_CLASSE_GRAMATICAL"><input id="einp_CAMPO_SEMANTICO"><input id="einp_SUB_CAMPO_SEMANTICO"><input id="einp_TRADUCAO_SIGNIFICADO"><input id="einp_ITENS_RELACIONADOS"><textarea id="einp_DESCRICAO"></textarea><input id="einp_ARQUIVO_VIDEO">
+                        <div id="econtainer-vars"></div><div id="econtainer-exs"></div><div id="econtainer-imgs"></div>
+                    </div>
+                </div>
+                
+                <div class="editor-preview-pane">
+                    <div class="preview-tabs">
+                        <button class="preview-tab active" onclick="switchPreviewTab(event, 'preview-html-card')">Card (HTML)</button>
+                        <button class="preview-tab" onclick="switchPreviewTab(event, 'preview-html-linear')">Linear (HTML)</button>
+                        <button class="preview-tab" onclick="switchPreviewTab(event, 'preview-pdf')">PDF (Typst)</button>
+                    </div>
+                    <div class="preview-content">
+                        <div id="preview-html-card" class="preview-panel active"></div>
+                        <div id="preview-html-linear" class="preview-panel" style="display: none;"></div>
+                        <div id="preview-pdf" class="preview-panel" style="display: none;">
+                            <iframe id="preview-pdf-frame" style="width: 100%; height: 100%; border: none;"></iframe>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -474,12 +496,32 @@
             const res = await fetch(url);
             if (!res.ok) throw new Error('Arquivo não encontrado no servidor local.');
             const blob = await res.blob();
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = nomeSalvo;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
+            
+            if (window.__TAURI__ && window.__TAURI__.core) {
+                const filter = nomeSalvo.split('.').pop();
+                const savePath = await window.__TAURI__.core.invoke('plugin:dialog|save', {
+                    title: 'Salvar Template',
+                    defaultPath: nomeSalvo,
+                    filters: [{ name: filter.toUpperCase(), extensions: [filter] }]
+                });
+
+                if (savePath) {
+                    const arrayBuffer = await blob.arrayBuffer();
+                    const uint8Array = new Uint8Array(arrayBuffer);
+                    await window.__TAURI__.core.invoke('plugin:fs|write_file', {
+                        path: savePath,
+                        data: Array.from(uint8Array)
+                    });
+                    console.log(`✅ Arquivo salvo nativamente em: ${savePath}`);
+                }
+            } else {
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = nomeSalvo;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            }
         } catch(e) {
             alert('Não foi possível baixar o template: ' + e.message);
         }
@@ -736,5 +778,6 @@
         irParaPasso(1);
     })();
 </script>
+<script src="src/editor-ui.js"></script>
 </body>
 </html>

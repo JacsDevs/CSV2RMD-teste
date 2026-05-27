@@ -63,13 +63,44 @@ export default class ModuloExportacao {
         this.salvarArquivoBlob(blob, nomeArquivo);
     }
 
-    salvarArquivoBlob(blob, nomeArquivo) {
+    async salvarArquivoBlob(blob, nomeArquivo) {
+        if (window.__TAURI__ && window.__TAURI__.core) {
+            try {
+                // Modo Desktop (Tauri)
+                const filter = nomeArquivo.split('.').pop();
+                const savePath = await window.__TAURI__.core.invoke('plugin:dialog|save', {
+                    title: 'Salvar Arquivo',
+                    defaultPath: nomeArquivo,
+                    filters: [{ name: filter.toUpperCase(), extensions: [filter] }]
+                });
+
+                if (savePath) {
+                    const arrayBuffer = await blob.arrayBuffer();
+                    const uint8Array = new Uint8Array(arrayBuffer);
+                    await window.__TAURI__.core.invoke('plugin:fs|write_file', {
+                        path: savePath,
+                        data: Array.from(uint8Array)
+                    });
+                    console.log(`✅ Arquivo salvo nativamente em: ${savePath}`);
+                } else {
+                    console.log('❌ Salvamento cancelado pelo usuário.');
+                }
+            } catch (err) {
+                console.error('Erro ao salvar no Desktop:', err);
+                this._fallbackDownload(blob, nomeArquivo);
+            }
+        } else {
+            this._fallbackDownload(blob, nomeArquivo);
+        }
+    }
+
+    _fallbackDownload(blob, nomeArquivo) {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
         a.download = nomeArquivo;
         a.click();
         URL.revokeObjectURL(url);
-        console.log(`✅ Arquivo salvo: ${nomeArquivo}`);
+        console.log(`✅ Arquivo baixado (Modo Web): ${nomeArquivo}`);
     }
 }
