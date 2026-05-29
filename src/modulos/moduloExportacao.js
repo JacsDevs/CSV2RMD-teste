@@ -45,12 +45,13 @@ export default class ModuloExportacao {
     }
     
     async exportarPdf(opcoes = {}, nomeArquivo = 'dicionario.pdf') {
-        // 1. Gera a string .typ
-        const codigoTypst = this.exportarTypst(opcoes);
-        // 2. Compila para PDF usando o WASM offline
-        const pdfBlob = await this.compiladorPdf.gerarPdf(codigoTypst);
-        // 3. Salva o PDF
+        const pdfBlob = await this.gerarPdfBlob(opcoes);
         this.salvarArquivoBlob(pdfBlob, nomeArquivo);
+    }
+
+    async gerarPdfBlob(opcoes = {}) {
+        const codigoTypst = this.exportarTypst(opcoes);
+        return await this.compiladorPdf.gerarPdf(codigoTypst);
     }
 
     async exportarZip(nomeArquivo) {
@@ -69,28 +70,40 @@ export default class ModuloExportacao {
                 // Modo Desktop (Tauri)
                 const filter = nomeArquivo.split('.').pop();
                 const savePath = await window.__TAURI__.core.invoke('plugin:dialog|save', {
-                    title: 'Salvar Arquivo',
-                    defaultPath: nomeArquivo,
-                    filters: [{ name: filter.toUpperCase(), extensions: [filter] }]
+                    options: {
+                        title: 'Salvar Arquivo',
+                        defaultPath: nomeArquivo,
+                        filters: [{ name: filter.toUpperCase(), extensions: [filter] }]
+                    }
                 });
 
                 if (savePath) {
                     const arrayBuffer = await blob.arrayBuffer();
                     const uint8Array = new Uint8Array(arrayBuffer);
-                    await window.__TAURI__.core.invoke('plugin:fs|write_file', {
-                        path: savePath,
-                        data: Array.from(uint8Array)
+                    
+                    // Tauri V2 possui um sistema de IPC otimizado para binários. 
+                    // Passamos o array bruto no payload e o caminho pelo header,
+                    // evitando o congelamento fatal da interface com Array.from().
+                    await window.__TAURI__.core.invoke('plugin:fs|write_file', uint8Array, {
+                        headers: {
+                            'Tauri-Fs-Path': savePath
+                        }
                     });
+                    
                     console.log(`✅ Arquivo salvo nativamente em: ${savePath}`);
+                    return true;
                 } else {
                     console.log('❌ Salvamento cancelado pelo usuário.');
+                    return false;
                 }
             } catch (err) {
                 console.error('Erro ao salvar no Desktop:', err);
                 this._fallbackDownload(blob, nomeArquivo);
+                return true;
             }
         } else {
             this._fallbackDownload(blob, nomeArquivo);
+            return true;
         }
     }
 

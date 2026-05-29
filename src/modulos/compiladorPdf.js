@@ -19,7 +19,7 @@ export default class CompiladorPdf {
             // 1. Importa o wrapper dinamicamente
             let $typst;
             try {
-                const module = await import('../../assets/typst/typst_wrapper.js');
+                const module = await import('/assets/typst/typst_wrapper.js');
                 $typst = module.$typst;
             } catch (err) {
                 throw new Error('Arquivo Javascript (typst_wrapper.js) ausente. Verifique se ele está na pasta assets/typst/.');
@@ -27,7 +27,7 @@ export default class CompiladorPdf {
             
             // 2. Inicializa os WASMs apontando para os binários locais
             await $typst.setCompilerInitOptions({
-                getModule: () => 'assets/typst/typst_compiler.wasm'
+                getModule: () => '/assets/typst/typst_compiler.wasm'
             });
             
             this.typstModule = $typst;
@@ -47,14 +47,16 @@ export default class CompiladorPdf {
         const fontes = ['Charis-Regular.ttf', 'Charis-Bold.ttf', 'Charis-Italic.ttf', 'Charis-BoldItalic.ttf'];
         for (const fonte of fontes) {
             try {
-                const res = await fetch(`assets/typst/fonts/${fonte}`);
+                const res = await fetch(`/assets/typst/fonts/${fonte}`);
                 if (res.ok) {
                     const buffer = await res.arrayBuffer();
                     const uint8 = new Uint8Array(buffer);
                     if (typeof this.typstModule.mapShadow === 'function') {
                         await this.typstModule.mapShadow(`/${fonte}`, uint8);
-                    } else {
+                    } else if (typeof this.typstModule.addAsset === 'function') {
                         await this.typstModule.addAsset(`/${fonte}`, uint8);
+                    } else {
+                        await this.typstModule.addMemoryFile(`/${fonte}`, uint8);
                     }
                 } else {
                     console.warn(`⚠️ Fonte local não encontrada no caminho: assets/typst/fonts/${fonte}`);
@@ -66,14 +68,16 @@ export default class CompiladorPdf {
 
         // 2. Carrega o plugin binário do cmarker
         try {
-            const resPlugin = await fetch(`assets/typst/plugin.wasm`);
+            const resPlugin = await fetch(`/assets/typst/plugin.wasm`);
             if (resPlugin.ok) {
                 const buffer = await resPlugin.arrayBuffer();
                 const uint8 = new Uint8Array(buffer);
                 if (typeof this.typstModule.mapShadow === 'function') {
                     await this.typstModule.mapShadow("/plugin.wasm", uint8);
-                } else {
+                } else if (typeof this.typstModule.addAsset === 'function') {
                     await this.typstModule.addAsset("/plugin.wasm", uint8);
+                } else {
+                    await this.typstModule.addMemoryFile("/plugin.wasm", uint8);
                 }
             }
         } catch (e) {
@@ -84,7 +88,7 @@ export default class CompiladorPdf {
         const dependencias = ['in-dexter.typ', 'cmarker.typ'];
         for (const dep of dependencias) {
             try {
-                const res = await fetch(`config/typst-deps/${dep}`);
+                const res = await fetch(`/config/typst-deps/${dep}`);
                 if (res.ok) {
                     let conteudo = await res.text();
                     
@@ -114,12 +118,14 @@ export default class CompiladorPdf {
                     const uint8 = new Uint8Array(buffer);
                     const caminhoVirtual = `/${nomeArquivo}`;
                     
+                    console.log(`[WASM INJECT] Injetando arquivo: ${caminhoVirtual} (${uint8.length} bytes)`);
+                    
                     if (typeof this.typstModule.mapShadow === 'function') {
                         await this.typstModule.mapShadow(caminhoVirtual, uint8);
                     } else if (typeof this.typstModule.addAsset === 'function') {
                         await this.typstModule.addAsset(caminhoVirtual, uint8);
                     } else {
-                        await this.typstModule.addSource(caminhoVirtual, uint8);
+                        await this.typstModule.addMemoryFile(caminhoVirtual, uint8);
                     }
                 } catch (e) {
                     console.warn(`⚠️ Erro ao injetar imagem ${caminhoOriginal}:`, e);

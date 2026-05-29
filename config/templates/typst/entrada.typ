@@ -10,15 +10,9 @@
 
 #block(breakable: false, width: 100%)[
   #align(center)[
-    #layout(size => {
-      let altura-max = calc.min(size.height * 0.55, 5.5cm)
-      let altura-min = 2.5cm
-      let altura-final = calc.max(altura-min, altura-max)
-      
-      box(width: 100% - 2mm, height: altura-final, align(center + horizon)[
-        #image("{{ ARQUIVO }}", width: 100%, height: 100%, fit: "contain")
-      ])
-    })
+    #box(width: 100%, align(center + horizon)[
+      #image("{{ ARQUIVO }}", height: 3.5cm, fit: "contain")
+    ])
     
     {{#LEGENDA}}
     #v(0.15em, weak: true)

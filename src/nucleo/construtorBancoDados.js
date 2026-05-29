@@ -78,32 +78,20 @@ class ConstrutorBancoDados {
         let contExemplos = 1;
         let contImagens = 1;
         let contVideos = 1;
-        
-        const regexSubCampo = /^SUB_CAMPO_SEMANTICO(_\d+)?$/i;
-        const colunasSub = Object.keys(df[0] || {}).filter(col => regexSubCampo.test(col)).sort();
 
-        const colunasPadrao = new Set([
-            'ITEM_LEXICAL', 'CLASSE_GRAMATICAL', 'CAMPO_SEMANTICO', 'ITENS_RELACIONADOS',
-            'ARQUIVO_SONORO', 'TRANSCRICAO_FONEMICA', 'TRANSCRICAO_FONETICA',
-            'TRADUCAO_SIGNIFICADO', 'DESCRICAO', 'ARQUIVO_SONORO_EXEMPLO',
-            'TRANSCRICAO_EXEMPLO', 'TRADUCAO_EXEMPLO', 'IMAGEM', 'LEGENDA_IMAGEM',
-            'ARQUIVO_VIDEO', 'TEXTO', ...colunasSub
-        ]);
-        
-        const colunasExtras = Object.keys(df[0] || {}).filter(c => 
-            !colunasPadrao.has(c) && !c.startsWith('#')
-        );
+        df.forEach((linhaNormalizada, index) => {
+            const camposBasicos = linhaNormalizada.camposBasicos || {};
+            const variacoes = linhaNormalizada.variacoes || [];
+            const exemplos = linhaNormalizada.exemplos || [];
+            const imagens = linhaNormalizada.imagens || [];
 
-        df.forEach((linha, index) => {
-            const lexicaisRaw = limparListaPipe(linha['ITEM_LEXICAL']);
-            if (lexicaisRaw.length === 0) return;
+            if (variacoes.length === 0 || !variacoes[0].item) return;
 
-            const termoPrincipal = lexicaisRaw[0].trim().toLowerCase();
-            const classe = String(linha['CLASSE_GRAMATICAL'] || '').trim().toLowerCase();
-            const categoria = String(linha['CAMPO_SEMANTICO'] || '').trim().toLowerCase();
-            const subCampos = colunasSub.map(col => String(linha[col] || '').trim()).filter(v => v && v.toLowerCase() !== 'nan');
-            const subCamposChave = subCampos.map(s => s.toLowerCase()).join('|');
-            const chaveAgrupamento = `${termoPrincipal}##${classe}##${categoria}##${subCamposChave}`;
+            const termoPrincipal = variacoes[0].item.trim().toLowerCase();
+            const classe = String(camposBasicos.CLASSE_GRAMATICAL || '').trim().toLowerCase();
+            const categoria = String(camposBasicos.CAMPO_SEMANTICO || '').trim().toLowerCase();
+            const subCampo = String(camposBasicos.SUB_CAMPO_SEMANTICO || '').trim().toLowerCase();
+            const chaveAgrupamento = `${termoPrincipal}##${classe}##${categoria}##${subCampo}`;
             
             let idEntrada = mapaEntradas[chaveAgrupamento];
             if (!idEntrada) {
@@ -113,11 +101,11 @@ class ConstrutorBancoDados {
                 db.entradas[idEntrada] = {
                     ID: idEntrada, 
                     _ORDEM_ORIGINAL: index, 
-                    _TERMO_PRINCIPAL: lexicaisRaw[0],
-                    CLASSE_GRAMATICAL: String(linha['CLASSE_GRAMATICAL'] || '').trim(),
-                    CAMPO_SEMANTICO: String(linha['CAMPO_SEMANTICO'] || '').trim(),
-                    SUB_CAMPOS_SEMANTICOS: subCampos,
-                    ITENS_RELACIONADOS: String(linha['ITENS_RELACIONADOS'] || '').trim(),
+                    _TERMO_PRINCIPAL: variacoes[0].item,
+                    CLASSE_GRAMATICAL: String(camposBasicos.CLASSE_GRAMATICAL || '').trim(),
+                    CAMPO_SEMANTICO: String(camposBasicos.CAMPO_SEMANTICO || '').trim(),
+                    SUB_CAMPOS_SEMANTICOS: [camposBasicos.SUB_CAMPO_SEMANTICO].filter(Boolean),
+                    ITENS_RELACIONADOS: String(camposBasicos.ITENS_RELACIONADOS || '').trim(),
                     TEXTOS_ESTRUTURADOS: [],
                     VARIACOES_IDS: [], 
                     ACEPCOES: []
@@ -126,225 +114,111 @@ class ConstrutorBancoDados {
             const entrada = db.entradas[idEntrada];
             
             // ========== VARIAÇÕES ==========
-            const audios = limparListaPipe(linha['ARQUIVO_SONORO']);
-            const fonemicas = limparListaPipe(linha['TRANSCRICAO_FONEMICA']);
-            const foneticas = limparListaPipe(linha['TRANSCRICAO_FONETICA']);
-            const maxVars = Math.max(lexicaisRaw.length, audios.length, fonemicas.length, foneticas.length);
-            
-            for (let i = 0; i < maxVars; i++) {
-                const lex = lexicaisRaw[i] || '';
-                const audioFile = audios[i] || '';
+            variacoes.forEach((v, i) => {
+                const lex = v.item || '';
+                const audioFile = v.audio || '';
                 
                 const audioExiste = this.validarEContarMidia(db, 'audio', audioFile);
                 
                 if (lex && !entrada.VARIACOES_IDS.some(vid => db.variacoes[vid] && db.variacoes[vid].TRANSCRICAO_ORTOGRAFICA === lex)) {
-                    const idVar = `${idEntrada}_var_${entrada.VARIACOES_IDS.length + 1}`;
-                    db.variacoes[idVar] = { 
-                        ID: idVar, 
-                        TRANSCRICAO_ORTOGRAFICA: lex, 
-                        ARQUIVO_SONORO: audioFile, 
+                    const varId = `${idEntrada}_VAR${i+1}`;
+                    db.variacoes[varId] = {
+                        ID: varId,
+                        TRANSCRICAO_ORTOGRAFICA: lex,
+                        ARQUIVO_SONORO: audioFile,
                         ARQUIVO_SONORO_EXISTE: audioExiste,
                         ARQUIVO_SONORO_URL: audioExiste ? this.obterMidiaUrl('audio', audioFile) : null,
-                        TRANSCRICAO_FONEMICA: fonemicas[i] || '', 
-                        TRANSCRICAO_FONETICA: foneticas[i] || '' 
+                        TRANSCRICAO_FONEMICA: v.fone || '',
+                        TRANSCRICAO_FONETICA: v.fonet || ''
                     };
-                    entrada.VARIACOES_IDS.push(idVar);
+                    entrada.VARIACOES_IDS.push(varId);
                 }
-            }
-            
+            });
+
             // ========== TEXTOS ESTRUTURADOS ==========
             const complementos = [];
-            const titulosBusca = limparListaPipe(linha['TEXTO']);
+            // Textos Estruturados will be added if they exist in future (removed flat TEXTO logic for now to simplify, as it's not in Editor)
             
-            titulosBusca.forEach(tit => {
-                if (!tit) return;
-
-                const fonteTextos = this.vfs.textosExtra;
-                const textoMatch = fonteTextos && fonteTextos[tit];
-                
-                if (textoMatch && typeof textoMatch === 'object' && textoMatch.titulo_base) {
-                    const jaExiste = entrada.TEXTOS_ESTRUTURADOS.some(t => t.TITULO_BASE === textoMatch.titulo_base);
-                    
-                    if (!jaExiste) {
-                        const textoFormatado = {
-                            TITULO_BASE: textoMatch.titulo_base,
-                            TEXTO_NAO_LITERAL: textoMatch.texto_nao_literal || '',
-                            VARIACOES: []
-                        };
-
-                        if (textoMatch.textos_variacoes && Array.isArray(textoMatch.textos_variacoes)) {
-                            textoMatch.textos_variacoes.forEach(v => {
-                                const variacao = { ID_VARIACAO: v.id_variacao || '', FRASES: [] };
-                                if (v.frases && Array.isArray(v.frases)) {
-                                    v.frases.forEach(f => {
-                                        const audioFrase = f.audio?.arquivo || '';
-                                        const audioDados = f.audio?.dados || '';
-                                        
-                                        let audioExiste = true;
-                                        let audioFinal = audioDados || audioFrase;
-                                        
-                                        if (audioFrase && !audioDados) {
-                                            audioExiste = this.validarEContarMidia(db, 'audio', audioFrase);
-                                        }
-
-                                        variacao.FRASES.push({
-                                            ORIGINAL: f.texto_original || '',
-                                            TRADUCAO: f.traducao || '',
-                                            AUDIO_SRC: (audioExiste && audioFrase && !audioDados) ? this.obterMidiaUrl('audio', audioFrase) : audioFinal,
-                                            AUDIO_ARQUIVO: audioFinal,
-                                            AUDIO_EXISTE: audioExiste,
-                                            ARQUIVO_ORIGEM: f.arquivo_origem || ''
-                                        });
-                                    });
-                                }
-                                textoFormatado.VARIACOES.push(variacao);
-                            });
-                        }
-                        entrada.TEXTOS_ESTRUTURADOS.push(textoFormatado);
-                    }
-                    return;
-                }
-
-                if (fonteTextos && typeof fonteTextos[tit] === 'string') {
-                    complementos.push(`<b>${tit}:</b> ${fonteTextos[tit]}`);
-                } else if (!fonteTextos || !fonteTextos[tit]) {
-                    complementos.push(`<b>${tit}:</b> [conteúdo não encontrado]`);
-                }
-            });
-
-            colunasExtras.forEach(col => {
-                const val = String(linha[col] || '').trim();
-                if (val && val.toLowerCase() !== 'nan') complementos.push(`<b>${col}:</b> ${val}`);
-            });
+            // ========== ACEPÇÃO (SIGNIFICADO) ==========
+            const defRaw = String(camposBasicos.TRADUCAO_SIGNIFICADO || '').trim();
+            const descRaw = String(camposBasicos.DESCRICAO || '').trim();
+            const chaveAcepcao = `${idEntrada}##${defRaw}##${descRaw}`;
             
-            // ========== ACEPÇÕES ==========
-            const traducoes = limparListaPipe(linha['TRADUCAO_SIGNIFICADO']);
-            const descricoes = limparListaPipe(linha['DESCRICAO']);
-            const exAudios = limparListaPipe(linha['ARQUIVO_SONORO_EXEMPLO']);
-            const exTrans = limparListaPipe(linha['TRANSCRICAO_EXEMPLO']);
-            const exTrads = limparListaPipe(linha['TRADUCAO_EXEMPLO']);
-            const imagens = limparListaPipe(linha['IMAGEM']);
-            const legendas = limparListaPipe(linha['LEGENDA_IMAGEM']);
-            const videos = limparListaPipe(linha['ARQUIVO_VIDEO']);
-            
-            const maxAceps = Math.max(
-                traducoes.length, descricoes.length, 
-                exAudios.length, exTrans.length, exTrads.length, 
-                imagens.length, legendas.length, videos.length
-            );
-            
-            const temComplementos = complementos.length > 0;
-            
-            for (let i = 0; i < maxAceps; i++) {
-                const trad = traducoes[i] || '';
-                const desc = descricoes[i] || '';
-                const eAud = exAudios[i] || '';
-                const eTrans = exTrans[i] || '';
-                const eTrad = exTrads[i] || '';
-                const img = imagens[i] || '';
-                const leg = legendas[i] || '';
-                const vid = videos[i] || '';
-                
-                const audioExiste = this.validarEContarMidia(db, 'audio', eAud);
-                const imagemExiste = this.validarEContarMidia(db, 'imagem', img);
-                const videoExiste = this.validarEContarMidia(db, 'video', vid);
-                
-                let idSigAtual = null;
-                let idExNovo = null;
-                let idImgNovo = null;
-                let idVideoNovo = null;
-                
-                if (trad || desc) {
-                    const chaveSig = `${trad.trim().toLowerCase()}||${desc.trim().toLowerCase()}`;
-                    idSigAtual = mapaSignificados[chaveSig];
-                    if (!idSigAtual) {
-                        idSigAtual = `SIG_${String(contSignificados).padStart(5, '0')}`;
-                        db.significados[idSigAtual] = { ID: idSigAtual, TRADUCAO: trad, DESCRICAO: desc };
-                        mapaSignificados[chaveSig] = idSigAtual;
-                        contSignificados++;
-                    }
-                }
-                
-                if (eTrans || eTrad) {
-                    idExNovo = `${idEntrada}_ex_${contExemplos}`;
-                    db.exemplos[idExNovo] = { 
-                        ID: idExNovo, 
-                        ARQUIVO_SONORO_EXEMPLO: eAud,
-                        ARQUIVO_SONORO_EXISTE: audioExiste,
-                        ARQUIVO_SONORO_URL: audioExiste ? this.obterMidiaUrl('audio', eAud) : null,
-                        TRANSCRICAO_EXEMPLO: eTrans, 
-                        TRADUCAO_EXEMPLO: eTrad 
-                    };
-                    contExemplos++;
-                }
-                
-                if (img) {
-                    idImgNovo = `${idEntrada}_img_${contImagens}`;
-                    db.imagens[idImgNovo] = { 
-                        ID: idImgNovo, 
-                        IMAGEM: img,
-                        IMAGEM_EXISTE: imagemExiste,
-                        IMAGEM_URL: imagemExiste ? this.obterMidiaUrl('imagem', img) : null,
-                        LEGENDA_IMAGEM: leg 
-                    };
-                    contImagens++;
-                }
-                
-                if (vid) {
-                    idVideoNovo = `${idEntrada}_vid_${contVideos}`;
-                    if (!db.videos) db.videos = {};
-                    db.videos[idVideoNovo] = { 
-                        ID: idVideoNovo, 
-                        ARQUIVO_VIDEO: vid,
-                        VIDEO_EXISTE: videoExiste,
-                        VIDEO_URL: videoExiste ? this.obterMidiaUrl('video', vid) : null
-                    };
-                    contVideos++;
-                }
-                
-                if (idSigAtual || idExNovo || idImgNovo || idVideoNovo || temComplementos) {
-                    let acepcaoAlvo = null;
-                    
-                    if (idSigAtual) {
-                        acepcaoAlvo = entrada.ACEPCOES.find(ac => ac.SIGNIFICADO_ID === idSigAtual);
-                    }
-                    
-                    if (!acepcaoAlvo) {
-                        if (entrada.ACEPCOES.length > 0 && !idSigAtual) {
-                            acepcaoAlvo = entrada.ACEPCOES[entrada.ACEPCOES.length - 1];
-                        } else {
-                            acepcaoAlvo = {
-                                SIGNIFICADO_ID: idSigAtual,
-                                EXEMPLOS_IDS: [],
-                                IMAGENS_IDS: [],
-                                VIDEOS_IDS: [],
-                                EXTRAS: []
-                            };
-                            entrada.ACEPCOES.push(acepcaoAlvo);
-                        }
-                    }
-                    
-                    if (idExNovo && !acepcaoAlvo.EXEMPLOS_IDS.includes(idExNovo)) acepcaoAlvo.EXEMPLOS_IDS.push(idExNovo);
-                    if (idImgNovo && !acepcaoAlvo.IMAGENS_IDS.includes(idImgNovo)) acepcaoAlvo.IMAGENS_IDS.push(idImgNovo);
-                    if (idVideoNovo && !acepcaoAlvo.VIDEOS_IDS.includes(idVideoNovo)) acepcaoAlvo.VIDEOS_IDS.push(idVideoNovo);
-                    
-                    if (!acepcaoAlvo.EXTRAS) acepcaoAlvo.EXTRAS = [];
-                    if (temComplementos) {
-                        for (const comp of complementos) {
-                            if (!acepcaoAlvo.EXTRAS.includes(comp)) acepcaoAlvo.EXTRAS.push(comp);
-                        }
-                    }
-                }
+            let idAcepcao = mapaSignificados[chaveAcepcao];
+            if (!idAcepcao && (defRaw || descRaw || exemplos.length > 0 || imagens.length > 0 || camposBasicos.ARQUIVO_VIDEO)) {
+                idAcepcao = `${idEntrada}_SIG${contSignificados++}`;
+                mapaSignificados[chaveAcepcao] = idAcepcao;
+                db.significados[idAcepcao] = {
+                    ID: idAcepcao,
+                    TRADUCAO: defRaw,
+                    DESCRICAO: descRaw,
+                    EXEMPLOS_IDS: [],
+                    IMAGENS_IDS: [],
+                    VIDEOS_IDS: [],
+                    EXTRAS: []
+                };
+                entrada.ACEPCOES.push({
+                    SIGNIFICADO_ID: idAcepcao,
+                    EXEMPLOS_IDS: [],
+                    IMAGENS_IDS: [],
+                    VIDEOS_IDS: [],
+                    EXTRAS: []
+                });
             }
             
-            const novoRelacionado = String(linha['ITENS_RELACIONADOS'] || '').trim();
-            if (novoRelacionado && !entrada.ITENS_RELACIONADOS.includes(novoRelacionado)) {
-                entrada.ITENS_RELACIONADOS = entrada.ITENS_RELACIONADOS 
-                    ? `${entrada.ITENS_RELACIONADOS} | ${novoRelacionado}` 
-                    : novoRelacionado;
+            if (idAcepcao) {
+                let acepcaoAlvo = entrada.ACEPCOES.find(ac => ac.SIGNIFICADO_ID === idAcepcao);
+                if (!acepcaoAlvo) acepcaoAlvo = entrada.ACEPCOES[entrada.ACEPCOES.length - 1];
+                
+                // ========== EXEMPLOS ==========
+                exemplos.forEach((e, i) => {
+                    if (e.trans || e.trad || e.audio) {
+                        const exAudioExiste = this.validarEContarMidia(db, 'audio', e.audio);
+                        const exId = `${idAcepcao}_EX${contExemplos++}`;
+                        db.exemplos[exId] = {
+                            ID: exId,
+                            TRANSCRICAO_EXEMPLO: e.trans || '',
+                            TRADUCAO_EXEMPLO: e.trad || '',
+                            ARQUIVO_SONORO_EXEMPLO: e.audio || '',
+                            ARQUIVO_SONORO_EXISTE: exAudioExiste,
+                            ARQUIVO_SONORO_URL: exAudioExiste ? this.obterMidiaUrl('audio', e.audio) : null
+                        };
+                        acepcaoAlvo.EXEMPLOS_IDS.push(exId);
+                    }
+                });
+
+                // ========== IMAGENS ==========
+                imagens.forEach((imgObj, i) => {
+                    if (imgObj.img) {
+                        const imgExiste = this.validarEContarMidia(db, 'imagem', imgObj.img);
+                        const imgId = `${idAcepcao}_IMG${contImagens++}`;
+                        db.imagens[imgId] = {
+                            ID: imgId,
+                            IMAGEM: imgObj.img,
+                            LEGENDA_IMAGEM: imgObj.leg || '',
+                            IMAGEM_EXISTE: imgExiste,
+                            IMAGEM_URL: imgExiste ? this.obterMidiaUrl('imagem', imgObj.img) : null
+                        };
+                        acepcaoAlvo.IMAGENS_IDS.push(imgId);
+                    }
+                });
+
+                // ========== VÍDEOS ==========
+                if (camposBasicos.ARQUIVO_VIDEO) {
+                    const vidExiste = this.validarEContarMidia(db, 'video', camposBasicos.ARQUIVO_VIDEO);
+                    const vidId = `${idAcepcao}_VID${contVideos++}`;
+                    if (!db.videos) db.videos = {};
+                    db.videos[vidId] = {
+                        ID: vidId,
+                        ARQUIVO_VIDEO: camposBasicos.ARQUIVO_VIDEO,
+                        VIDEO_EXISTE: vidExiste,
+                        VIDEO_URL: vidExiste ? this.obterMidiaUrl('video', camposBasicos.ARQUIVO_VIDEO) : null
+                    };
+                    acepcaoAlvo.VIDEOS_IDS.push(vidId);
+                }
             }
         });
-        
+
         db.metadados.totalEntradas = Object.keys(db.entradas).length;
         db.metadados.totalVariacoes = Object.keys(db.variacoes).length;
         db.metadados.totalSignificados = Object.keys(db.significados).length;

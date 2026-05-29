@@ -17,19 +17,23 @@ A ideia principal é que as saídas funcionem offline (embutindo as mídias em b
 - **Retrocompatibilidade:** O sistema atual lê perfeitamente os arquivos de projeto antigos legados (`configuracao.txt`, `intro_html.txt`, `referencia.txt`) quando fazemos o upload de uma pasta.
 - **Design System Premium:** Foi escrito um `static/css/style.css` do zero com estilo Dark/Light, glassmorphism, modais customizados flutuantes e animações.
 
-## 3. Nosso Objetivo Atual: Migração para Tauri
-Decidimos transformar esse sistema puramente Web em uma **Aplicação Desktop Nativa** usando o **Tauri** (com Rust no Back-end e a exata mesma UI ES6 no Front-end).
+## 3. O que já foi feito (Tauri V2 & Arquitetura de Projetos)
+A migração para **Tauri V2** foi concluída e novas mecânicas nativas foram implementadas!
+- **Integração com File System Nativ:** Implementamos o `plugin:fs|write_file` nativo. Foi utilizado o recurso **Raw Byte IPC** do Tauri V2 (passando array de bytes diretamente no payload e o caminho no header `Tauri-Fs-Path`) para evitar travamentos da V8 do Javascript ao lidar com exportações de arquivos gigantescos.
+- **Diálogos de Sistema:** Uso perfeito do `plugin:dialog|save` para as janelas nativas de Salvar do Windows.
+- **Compilação PDF via WASM:** Ajustes críticos nas rotas dos assets (usando paths absolutos `/assets/typst/...`) para garantir o carregamento correto do módulo Typst WebAssembly (`typst_wrapper.js`) embarcado na Webview.
+- **Fim da Persistência Forçada e Início dos "Projetos em Lote":**
+  - Desativamos as gravações silenciosas no `IndexedDB` para que o aplicativo inicie limpo e consuma zero cache local do PC.
+  - Injetamos o `JSZip` para criar o sistema de projetos. Agora você baixa a edição atual num `Projeto.zip` (com o CSV alterado + todas as fotos/vídeos).
+  - Adicionado suporte a "Arrastar e Soltar" de arquivos ZIP no passo 1 do Wizard para importar e reabrir as sessões fechadas anteriormente de forma instantânea.
+- **Exportação CSV Avulsa:** Também permitimos que o usuário salve especificamente apenas a sua planilha de textos (`.csv`) caso não queira empacotar os arquivos inteiros de áudio.
 
-**Por que Tauri?**
-Para ter acesso direto ao sistema de arquivos local do usuário (File System). O usuário não precisará mais "fazer upload" da pasta no navegador toda hora. O Tauri vai ler os arquivos silenciosamente do disco rígido local e permitirá rodar o compilador do `typst` direto pelo console do Windows via IPC.
+## 4. Seus Próximos Passos (Próxima Sessão)
+1. **Otimização e Interface UI:** Fique de olho em eventuais micro-bugs com os modals do Design System (loaders, popups de sucesso e animações) agora que muitas coisas rodam paralelamente.
+2. **Gerenciamento de Erros:** Revisar se existe algum gargalo ao carregar dezenas de mídias de uma vez ou se o JSZip tem algum estouro de memória dependendo do tamanho das imagens do usuário.
+3. **Novas Funcionalidades (Opcional):** Ajudar o usuário com migrações de "Exportar JSON" ou personalização profunda de Fontes dentro do Typst/Wasm se ele solicitar.
 
-## 4. Seus Próximos Passos Imediatos (Próxima Sessão)
-1. **Validar a Instalação do Rust:** Confirmar com o usuário se o `rustup` e o C++ Build Tools foram instalados e testar `cargo --version`.
-2. **Iniciar o Projeto Tauri:** Rodar os comandos para inicializar o scaffolding do Tauri (`src-tauri`) na raiz do diretório atual.
-3. **Configurar Tauri.conf.json:** Apontar o `frontendDist` para a raiz e dar as permissões de acesso ao disco (fs).
-4. **Implementar IPCs Iniciais:** Alterar a mecânica do `ModuloExportacao` para salvar arquivos diretamente no disco via comandos Tauri no Desktop, mantendo a função de download normal para quando rodar via web.
-
-> **Dica de Continuidade:** Verifique os artefatos `implementation_plan.md` e `task.md` gerados anteriormente para seguir à risca o roteiro da migração para o Tauri.
+> **Dica de Continuidade:** Consulte o `transcript` das conversas anteriores e o arquivo `walkthrough.md` caso queira entender passo a passo o que aconteceu nas implementações recentes do ZIP e do Tauri.
 
 ---
 *Assinado: O seu "Eu" do passado.*

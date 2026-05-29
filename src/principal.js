@@ -40,40 +40,61 @@ window.sistema = {
         if (!sistema) return [];
         // Mapear os dados para incluir o índice
         return (sistema.dadosPlanilha || []).map((linha, idx) => {
+            const varItem = linha.variacoes?.[0]?.item;
             return {
                 indice: idx,
-                itemLexical: linha.ITEM_LEXICAL ? linha.ITEM_LEXICAL.split('|')[0].trim() : `Linha ${idx + 1}`
+                itemLexical: varItem ? varItem.split('|')[0].trim() : `Linha ${idx + 1}`
             };
         });
     },
     
     // --- PREVIEWS E EDIÇÃO ---
-    abrirEditorParaItem: (indice) => editor?.obterItemParaEdicao(indice),
-    salvarItemEditado: (indice, dados) => editor?.salvarEdicao(indice, dados),
-    gerarPreview: async (dados, formato) => {
+    gerarPreview: async (dadosNormalizados, formato) => {
         if (!exportador) return null;
         
-        // Simulando a estrutura do banco para o template
-        const dadosFormatados = { ...dados.camposBasicos };
-        dadosFormatados.ITEM_LEXICAL = (dados.variacoes || []).map(v => v.item).join(' | ');
-        dadosFormatados.ARQUIVO_SONORO = (dados.variacoes || []).map(v => v.audio).join(' | ');
-        dadosFormatados.TRANSCRICAO_FONEMICA = (dados.variacoes || []).map(v => v.fone).join(' | ');
-        dadosFormatados.TRANSCRICAO_FONETICA = (dados.variacoes || []).map(v => v.fonet).join(' | ');
-        dadosFormatados.ARQUIVO_SONORO_EXEMPLO = (dados.exemplos || []).map(e => e.audio).join(' | ');
-        dadosFormatados.TRANSCRICAO_EXEMPLO = (dados.exemplos || []).map(e => e.trans).join(' | ');
-        dadosFormatados.TRADUCAO_EXEMPLO = (dados.exemplos || []).map(e => e.trad).join(' | ');
-        dadosFormatados.IMAGEM = (dados.imagens || []).map(i => i.img).join(' | ');
-        dadosFormatados.LEGENDA_IMAGEM = (dados.imagens || []).map(i => i.leg).join(' | ');
+        const variacoes = dadosNormalizados.variacoes || [];
+        const campos = dadosNormalizados.camposBasicos || {};
+        const exemplos = dadosNormalizados.exemplos || [];
+        const imagens = dadosNormalizados.imagens || [];
+        
+        const termos = variacoes.map(v => v.item).filter(Boolean);
+        const fonemicas = variacoes.map(v => v.fone).filter(Boolean);
+        const foneticas = variacoes.map(v => v.fonet).filter(Boolean);
+        const audios = variacoes.map(v => v.audio).filter(Boolean);
+        
+        let significado = {
+            NUMERO: '',
+            TRADUCAO: campos.TRADUCAO_SIGNIFICADO || '',
+            DESCRICAO: campos.DESCRICAO || '',
+            EXEMPLOS: exemplos.map(e => ({ TRANS: e.trans || '', TRAD: e.trad || '' })),
+            IMAGENS: imagens.map(i => ({ ARQUIVO: i.img ? i.img.split('/').pop().split('\\').pop() : '', LEGENDA: i.leg || '' })).filter(i => i.ARQUIVO),
+            VIDEOS: campos.ARQUIVO_VIDEO ? [{ARQUIVO: campos.ARQUIVO_VIDEO}] : [],
+            EXTRAS: []
+        };
+        
+        const itemProcessado = {
+            TERMO: termos.length > 0 ? termos.join(' ~ ') : '???',
+            TERMO_PARENT: termos[0] || '???',
+            CLASSE: campos.CLASSE_GRAMATICAL || '',
+            CAMPO_SEMANTICO: campos.CAMPO_SEMANTICO || '',
+            SUB_CAMPO_SEMANTICO: campos.SUB_CAMPO_SEMANTICO || '',
+            FONEMICA: fonemicas.join(' ~ '),
+            FONETICA: foneticas.join(' ~ '),
+            AUDIO: audios.join(' ~ '),
+            SIGNIFICADOS: [significado],
+            ITENS_RELACIONADOS: campos.ITENS_RELACIONADOS || '',
+            INDEX: campos.TRADUCAO_SIGNIFICADO || '',
+            TEXTOS_ESTRUTURADOS: []
+        };
 
-        const itemProcessado = exportador.exportadorCards.extrairDadosEntrada(dadosFormatados);
-
+        let resultadoHtml = null;
         if (formato === 'preview-html-card') {
-            return exportador.exportadorCards.processarTemplate(exportador.exportadorCards.templateEntrada, itemProcessado);
+            resultadoHtml = exportador.exportadorCards.processarTemplate(exportador.exportadorCards.templateEntrada, itemProcessado);
         } else if (formato === 'preview-html-linear') {
-            return exportador.exportadorLinear.processarTemplate(exportador.exportadorLinear.templateEntrada, itemProcessado);
+            resultadoHtml = exportador.exportadorLinear.processarTemplate(exportador.exportadorLinear.templateEntrada, itemProcessado);
         } else if (formato === 'preview-pdf') {
             const strTypst = exportador.exportadorTypstModule.processarTemplate(exportador.exportadorTypstModule.templateEntrada, itemProcessado);
-            const docTypst = `#set page(width: auto, height: auto, margin: 10pt)\n#set text(font: "Charis SIL")\n${strTypst}`;
+            const docTypst = `#import "/in-dexter.typ": *\n#set page(width: auto, height: auto, margin: 10pt)\n#set text(font: ("Charis SIL", "Arial"), fallback: true)\n${strTypst}`;
             try {
                 const blob = await exportador.compiladorPdf.gerarPdf(docTypst);
                 return URL.createObjectURL(blob);
@@ -82,6 +103,34 @@ window.sistema = {
                 return null;
             }
         }
+        
+        if (resultadoHtml) {
+            const div = document.createElement('div');
+            div.innerHTML = resultadoHtml;
+            div.querySelectorAll('img').forEach(img => {
+                const src = img.getAttribute('src');
+                if (src && !src.startsWith('blob:') && !src.startsWith('http')) {
+                    const nome = src.split('/').pop();
+                    if (sistema.vfs.imagem.has(nome)) img.src = sistema.vfs.obterUrl('imagem', nome);
+                }
+            });
+            div.querySelectorAll('audio, source').forEach(el => {
+                const src = el.getAttribute('src');
+                if (src && !src.startsWith('blob:') && !src.startsWith('http')) {
+                    const nome = src.split('/').pop();
+                    if (sistema.vfs.audio.has(nome)) el.src = sistema.vfs.obterUrl('audio', nome);
+                }
+            });
+            div.querySelectorAll('video, source').forEach(el => {
+                const src = el.getAttribute('src');
+                if (src && !src.startsWith('blob:') && !src.startsWith('http')) {
+                    const nome = src.split('/').pop();
+                    if (sistema.vfs.video.has(nome)) el.src = sistema.vfs.obterUrl('video', nome);
+                }
+            });
+            return div.innerHTML;
+        }
+        return null;
     },
     
     // --- EXPORTAÇÕES ---

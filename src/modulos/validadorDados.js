@@ -58,10 +58,36 @@ class ValidadorDados {
     }
 
     diagnosticar() {
-        const dados = this.db.dadosBrutos || [];
-        if (dados.length === 0) {
+        const dadosPlanilha = this.db.dadosPlanilha || [];
+        if (dadosPlanilha.length === 0) {
             return { sucesso: false, mensagem: 'Nenhum dado carregado para validar.' };
         }
+        
+        const dados = dadosPlanilha.map(item => {
+            const cb = item.camposBasicos || {};
+            const vars = item.variacoes || [];
+            const exs = item.exemplos || [];
+            const imgs = item.imagens || [];
+            
+            return {
+                ITEM_LEXICAL: vars.map(v => v.item || '').join(' | '),
+                CLASSE_GRAMATICAL: cb.CLASSE_GRAMATICAL || '',
+                CAMPO_SEMANTICO: cb.CAMPO_SEMANTICO || '',
+                SUB_CAMPO_SEMANTICO: cb.SUB_CAMPO_SEMANTICO || '',
+                ARQUIVO_SONORO: vars.map(v => v.audio || '').join(' | '),
+                TRANSCRICAO_FONEMICA: vars.map(v => v.fone || '').join(' | '),
+                TRANSCRICAO_FONETICA: vars.map(v => v.fonet || '').join(' | '),
+                TRADUCAO_SIGNIFICADO: cb.TRADUCAO_SIGNIFICADO || '',
+                ITENS_RELACIONADOS: cb.ITENS_RELACIONADOS || '',
+                DESCRICAO: cb.DESCRICAO || '',
+                ARQUIVO_SONORO_EXEMPLO: exs.map(e => e.audio || '').join(' | '),
+                TRANSCRICAO_EXEMPLO: exs.map(e => e.trans || '').join(' | '),
+                TRADUCAO_EXEMPLO: exs.map(e => e.trad || '').join(' | '),
+                IMAGEM: imgs.map(i => i.img || '').join(' | '),
+                LEGENDA_IMAGEM: imgs.map(i => i.leg || '').join(' | '),
+                ARQUIVO_VIDEO: cb.ARQUIVO_VIDEO || ''
+            };
+        });
 
         const erros = {};
         let entradasSemAudio = 0, entradasSemImagem = 0, entradasSemVideo = 0;
@@ -200,6 +226,72 @@ class ValidadorDados {
         }
         
         return html;
+    }
+
+    gerarRelatorioTexto(diagnostico) {
+        if (!diagnostico.sucesso) return `ERRO GERAL: ${diagnostico.mensagem}\n`;
+        
+        const { estatisticas, errosValidacao, midiasFaltando, midiasNaoUsadas, totalProblemas } = diagnostico;
+        
+        let txt = `====================================================\n`;
+        txt += `RELATÓRIO DE VALIDAÇÃO DO DICIONÁRIO\n`;
+        txt += `====================================================\n\n`;
+        
+        txt += `[ ESTATÍSTICAS GERAIS ]\n`;
+        txt += `- Total de entradas: ${estatisticas.totalEntradas}\n`;
+        txt += `- Áudios referenciados: ${estatisticas.audiosRef}\n`;
+        txt += `- Imagens referenciadas: ${estatisticas.imagensRef}\n`;
+        txt += `- Vídeos referenciados: ${estatisticas.videosRef}\n\n`;
+        
+        txt += `- Entradas sem áudio: ${estatisticas.entradasSemAudio}\n`;
+        txt += `- Entradas sem imagem: ${estatisticas.entradasSemImagem}\n`;
+        txt += `- Entradas sem vídeo: ${estatisticas.entradasSemVideo}\n\n`;
+        
+        txt += `----------------------------------------------------\n`;
+        txt += `[ CRUZAMENTO DE MÍDIAS ]\n`;
+        const totalFaltando = midiasFaltando.audio.length + midiasFaltando.imagem.length + midiasFaltando.video.length;
+        if (totalFaltando === 0) {
+            txt += `✅ Todas as mídias referenciadas foram encontradas!\n\n`;
+        } else {
+            txt += `⚠️ ${totalFaltando} mídia(s) referenciada(s) não encontrada(s):\n`;
+            if (midiasFaltando.audio.length > 0) txt += `  - ÁUDIO: ${midiasFaltando.audio.join(', ')}\n`;
+            if (midiasFaltando.imagem.length > 0) txt += `  - IMAGEM: ${midiasFaltando.imagem.join(', ')}\n`;
+            if (midiasFaltando.video.length > 0) txt += `  - VÍDEO: ${midiasFaltando.video.join(', ')}\n`;
+            txt += `\n`;
+        }
+        
+        const totalNaoUsadas = midiasNaoUsadas.audio.length + midiasNaoUsadas.imagem.length + midiasNaoUsadas.video.length;
+        if (totalNaoUsadas > 0) {
+            txt += `💡 ${totalNaoUsadas} mídia(s) carregada(s) mas não referenciada(s) na planilha:\n`;
+            if (midiasNaoUsadas.audio.length > 0) txt += `  - ÁUDIO: ${midiasNaoUsadas.audio.join(', ')}\n`;
+            if (midiasNaoUsadas.imagem.length > 0) txt += `  - IMAGEM: ${midiasNaoUsadas.imagem.join(', ')}\n`;
+            if (midiasNaoUsadas.video.length > 0) txt += `  - VÍDEO: ${midiasNaoUsadas.video.join(', ')}\n`;
+            txt += `\n`;
+        }
+        
+        txt += `----------------------------------------------------\n`;
+        txt += `[ VALIDAÇÃO DE ESTRUTURA E CAMPOS ]\n`;
+        const linhasComErro = Object.keys(errosValidacao);
+        if (linhasComErro.length === 0) {
+            txt += `✅ Nenhum erro de preenchimento obrigatório ou estrutura encontrado!\n\n`;
+        } else {
+            txt += `⚠️ ${linhasComErro.length} linha(s) com erro(s):\n`;
+            linhasComErro.forEach(linha => {
+                txt += `  - LINHA ${linha}:\n`;
+                errosValidacao[linha].forEach(erro => txt += `      -> ${erro}\n`);
+            });
+            txt += `\n`;
+        }
+        
+        txt += `====================================================\n`;
+        if (totalProblemas === 0) {
+            txt += `RESULTADO: ✅ TUDO OK! Nenhuma pendência.\n`;
+        } else {
+            txt += `RESULTADO: ⚠️ PENDÊNCIAS ENCONTRADAS.\n`;
+            txt += `Total de problemas: ${totalProblemas} (${linhasComErro.length} linhas com erro + ${totalFaltando} mídias faltando)\n`;
+        }
+        
+        return txt;
     }
 }
 export default ValidadorDados;

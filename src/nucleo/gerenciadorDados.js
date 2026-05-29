@@ -51,10 +51,113 @@ export default class GerenciadorDados {
     async carregarPlanilha(arquivo) {
         console.log(`📄 Processando planilha via CarregadorCsv: ${arquivo.name}`);
         const resultado = await this.carregadorCsv.processarCSV(arquivo);
-        this.dadosPlanilha = resultado.dados;
+        
+        // Normaliza os dados crus (flat) para o formato aninhado do Editor
+        this.dadosPlanilha = resultado.dados.map((linhaMesclada, index) => {
+            const imagens = [];
+            if (linhaMesclada.IMAGEM || linhaMesclada.LEGENDA_IMAGEM) {
+                const imgsRaw = (linhaMesclada.IMAGEM || '').split('|').map(v=>v.trim());
+                const legsRaw = (linhaMesclada.LEGENDA_IMAGEM || '').split('|').map(v=>v.trim());
+                const maxLen = Math.max(imgsRaw.length, legsRaw.length);
+                for(let i = 0; i < maxLen; i++) {
+                    if (imgsRaw[i] || legsRaw[i]) {
+                        imagens.push({
+                            img: imgsRaw[i] ? imgsRaw[i].split('/').pop().split('\\').pop() : '',
+                            leg: legsRaw[i] || ''
+                        });
+                    }
+                }
+            }
+            for(let i=1; i<=10; i++) {
+                if (linhaMesclada[`IMAGEM_${i}`] || linhaMesclada[`LEGENDA_${i}`]) {
+                    const imgRaw = linhaMesclada[`IMAGEM_${i}`] || '';
+                    imagens.push({
+                        img: imgRaw ? imgRaw.split('/').pop().split('\\').pop() : '',
+                        leg: linhaMesclada[`LEGENDA_${i}`] || ''
+                    });
+                }
+            }
+            
+            const exemplos = [];
+            if (linhaMesclada.ARQUIVO_SONORO_EXEMPLO || linhaMesclada.TRANSCRICAO_EXEMPLO || linhaMesclada.TRADUCAO_EXEMPLO) {
+                const exAudioRaw = (linhaMesclada.ARQUIVO_SONORO_EXEMPLO || '').split('|').map(v=>v.trim());
+                const exTransRaw = (linhaMesclada.TRANSCRICAO_EXEMPLO || '').split('|').map(v=>v.trim());
+                const exTradRaw = (linhaMesclada.TRADUCAO_EXEMPLO || '').split('|').map(v=>v.trim());
+                const maxLen = Math.max(exAudioRaw.length, exTransRaw.length, exTradRaw.length);
+                for(let i = 0; i < maxLen; i++) {
+                    if (exAudioRaw[i] || exTransRaw[i] || exTradRaw[i]) {
+                        exemplos.push({
+                            audio: exAudioRaw[i] || '',
+                            trans: exTransRaw[i] || '',
+                            trad: exTradRaw[i] || ''
+                        });
+                    }
+                }
+            }
+            for(let i=1; i<=10; i++) {
+                if (linhaMesclada[`EX_${i}_TRANS`] || linhaMesclada[`EX_${i}_TRAD`] || linhaMesclada[`EX_${i}_AUDIO`]) {
+                    exemplos.push({
+                        audio: linhaMesclada[`EX_${i}_AUDIO`] || '',
+                        trans: linhaMesclada[`EX_${i}_TRANS`] || '',
+                        trad: linhaMesclada[`EX_${i}_TRAD`] || ''
+                    });
+                }
+            }
+            
+            const variacoes = [];
+            // Verifica o formato com pipe
+            if (linhaMesclada.ITEM_LEXICAL && linhaMesclada.ITEM_LEXICAL.includes('|')) {
+                const vi = (linhaMesclada.ITEM_LEXICAL || '').split('|').map(v=>v.trim());
+                const va = (linhaMesclada.ARQUIVO_SONORO || '').split('|').map(v=>v.trim());
+                const vf = (linhaMesclada.TRANSCRICAO_FONEMICA || '').split('|').map(v=>v.trim());
+                const vt = (linhaMesclada.TRANSCRICAO_FONETICA || '').split('|').map(v=>v.trim());
+                const lenV = Math.max(vi.length, va.length, vf.length, vt.length);
+                for (let i = 0; i < lenV; i++) {
+                    variacoes.push({ item: vi[i] || '', audio: va[i] || '', fone: vf[i] || '', fonet: vt[i] || '' });
+                }
+            } else {
+                // Formato de colunas (VAR_1_ITEM) ou item unico
+                variacoes.push({
+                    item: linhaMesclada.ITEM_LEXICAL || '',
+                    audio: linhaMesclada.ARQUIVO_SONORO || '',
+                    fone: linhaMesclada.TRANSCRICAO_FONEMICA || '',
+                    fonet: linhaMesclada.TRANSCRICAO_FONETICA || ''
+                });
+                for(let i=1; i<=10; i++) {
+                    if (linhaMesclada[`VAR_${i}_ITEM`] || linhaMesclada[`VAR_${i}_AUDIO`] || linhaMesclada[`VAR_${i}_FONE`] || linhaMesclada[`VAR_${i}_FONET`]) {
+                        variacoes.push({
+                            item: linhaMesclada[`VAR_${i}_ITEM`] || '',
+                            audio: linhaMesclada[`VAR_${i}_AUDIO`] || '',
+                            fone: linhaMesclada[`VAR_${i}_FONE`] || '',
+                            fonet: linhaMesclada[`VAR_${i}_FONET`] || ''
+                        });
+                    }
+                }
+            }
+            
+            // Remove variações vazias
+            const variacoesFiltradas = variacoes.filter(v => v.item || v.audio || v.fone || v.fonet);
+
+            return {
+                indice: index,
+                camposBasicos: {
+                    CLASSE_GRAMATICAL: linhaMesclada.CLASSE_GRAMATICAL || '',
+                    CAMPO_SEMANTICO: linhaMesclada.CAMPO_SEMANTICO || '',
+                    SUB_CAMPO_SEMANTICO: linhaMesclada.SUB_CAMPO_SEMANTICO || '',
+                    TRADUCAO_SIGNIFICADO: linhaMesclada.TRADUCAO_SIGNIFICADO || '',
+                    ITENS_RELACIONADOS: linhaMesclada.ITENS_RELACIONADOS || '',
+                    DESCRICAO: linhaMesclada.DESCRICAO || '',
+                    ARQUIVO_VIDEO: linhaMesclada.ARQUIVO_VIDEO || ''
+                },
+                variacoes: variacoesFiltradas,
+                exemplos,
+                imagens
+            };
+        });
+
         this.colunasPlanilha = resultado.colunas;
         
-        console.log(`✅ Planilha carregada: ${this.dadosPlanilha.length} linhas.`);
+        console.log(`✅ Planilha carregada e normalizada: ${this.dadosPlanilha.length} linhas.`);
         this._reconstruirBanco();
     }
 
@@ -153,6 +256,56 @@ export default class GerenciadorDados {
         this._bancoConstruido = null;
         this.vfs.limpar();
         console.log('🧹 Dados limpos com sucesso.');
+    }
+
+    async exportar(tipo) {
+        if (tipo === 'csv') {
+            if (!this.carregadorCsv.papa || this.dadosPlanilha.length === 0) return null;
+            
+            // Re-empacota a árvore de volta para linhas planas
+            const dadosPlanos = this.dadosPlanilha.map(item => {
+                const cb = item.camposBasicos || {};
+                const vars = item.variacoes || [];
+                const exs = item.exemplos || [];
+                const imgs = item.imagens || [];
+                
+                const linhaPlana = {
+                    ITEM_LEXICAL: vars.map(v => v.item || '').join(' | '),
+                    CLASSE_GRAMATICAL: cb.CLASSE_GRAMATICAL || '',
+                    CAMPO_SEMANTICO: cb.CAMPO_SEMANTICO || '',
+                    SUB_CAMPO_SEMANTICO: cb.SUB_CAMPO_SEMANTICO || '',
+                    ARQUIVO_SONORO: vars.map(v => v.audio || '').join(' | '),
+                    TRANSCRICAO_FONEMICA: vars.map(v => v.fone || '').join(' | '),
+                    TRANSCRICAO_FONETICA: vars.map(v => v.fonet || '').join(' | '),
+                    TRADUCAO_SIGNIFICADO: cb.TRADUCAO_SIGNIFICADO || '',
+                    ITENS_RELACIONADOS: cb.ITENS_RELACIONADOS || '',
+                    DESCRICAO: cb.DESCRICAO || '',
+                    ARQUIVO_SONORO_EXEMPLO: exs.map(e => e.audio || '').join(' | '),
+                    TRANSCRICAO_EXEMPLO: exs.map(e => e.trans || '').join(' | '),
+                    TRADUCAO_EXEMPLO: exs.map(e => e.trad || '').join(' | '),
+                    IMAGEM: imgs.map(i => i.img || '').join(' | '),
+                    LEGENDA_IMAGEM: imgs.map(i => i.leg || '').join(' | '),
+                    ARQUIVO_VIDEO: cb.ARQUIVO_VIDEO || ''
+                };
+                return linhaPlana;
+            });
+            
+            return this.carregadorCsv.papa.unparse(dadosPlanos);
+        } else if (tipo === 'projeto') {
+            const projeto = {
+                dadosPlanilha: this.dadosPlanilha,
+                colunasPlanilha: this.colunasPlanilha,
+                textosExtra: this.vfs.textosExtra,
+                introHtml: this.introHtml,
+                introPdf: this.introPdf,
+                referencia: this.referencia,
+                alfabetoCustomizado: this.alfabetoCustomizado,
+                configuracaoTextoLocal: this.configuracaoTextoLocal,
+                geradoEm: new Date().toISOString()
+            };
+            return JSON.stringify(projeto, null, 2);
+        }
+        return null;
     }
 
     obterEstatisticas() {

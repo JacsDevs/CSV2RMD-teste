@@ -12,7 +12,7 @@ class ExportadorTypst extends ExportadorBase {
             const cachePrincipal = localStorage.getItem('csv2dmli_template_typst');
             const cacheEntrada = localStorage.getItem('csv2dmli_templateEntradaTypst');
             
-            if (cachePrincipal) this.templatePrincipal = cachePrincipal;
+            if (false && cachePrincipal) this.templatePrincipal = cachePrincipal;
             else {
                 try {
                     const res = await fetch('config/templates/typst/template.typ');
@@ -20,7 +20,7 @@ class ExportadorTypst extends ExportadorBase {
                 } catch(e) { console.warn('Fetch de config/templates/typst/template.typ falhou, usando fallback.'); }
             }
 
-            if (cacheEntrada) this.templateEntrada = cacheEntrada;
+            if (false && cacheEntrada) this.templateEntrada = cacheEntrada;
             else {
                 try {
                     const res = await fetch('config/templates/typst/entrada.typ');

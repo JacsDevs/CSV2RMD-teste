@@ -82,7 +82,7 @@ class ExportadorBase {
                 });
                 if (ac.IMAGENS_IDS) ac.IMAGENS_IDS.forEach(imgId => {
                     const img = banco.imagens[imgId];
-                    if (img && img.IMAGEM) significado.IMAGENS.push({ ARQUIVO: img.IMAGEM.split('/').pop().split('\\').pop(), LEGENDA: img.LEGENDA_IMAGEM || '' });
+                    if (img && img.IMAGEM) significado.IMAGENS.push({ ARQUIVO: decodeURIComponent(img.IMAGEM.split('/').pop().split('\\').pop()).replace(/[{}]/g, '').trim().toLowerCase(), LEGENDA: img.LEGENDA_IMAGEM || '' });
                 });
                 if (ac.ARQUIVOS_VIDEO) ac.ARQUIVOS_VIDEO.forEach(vid => { if (vid) significado.VIDEOS.push({ ARQUIVO: vid }); });
                 if (ac.EXTRAS) ac.EXTRAS.forEach(ext => { if (ext) significado.EXTRAS.push({ TEXTO: ext }); });

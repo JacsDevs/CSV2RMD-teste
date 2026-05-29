@@ -16,32 +16,7 @@ class BancoNavegador {
      * @returns {Promise<IDBDatabase>}
      */
     async inicializar() {
-        if (this.db) return this.db;
-
-        return new Promise((resolve, reject) => {
-            const request = indexedDB.open(this.nomeBanco, this.versao);
-
-            request.onerror = (evento) => {
-                console.error("Erro ao abrir IndexedDB:", evento.target.error);
-                reject(evento.target.error);
-            };
-
-            request.onsuccess = (evento) => {
-                this.db = evento.target.result;
-                resolve(this.db);
-            };
-
-            request.onupgradeneeded = (evento) => {
-                const db = evento.target.result;
-                // Cria o store (tabela) principal
-                if (!db.objectStoreNames.contains('midias')) {
-                    db.createObjectStore('midias');
-                }
-                if (!db.objectStoreNames.contains('metadados')) {
-                    db.createObjectStore('metadados');
-                }
-            };
-        });
+        return null;
     }
 
     /**
@@ -52,15 +27,8 @@ class BancoNavegador {
      * @returns {Promise<void>}
      */
     async set(storeName, key, value) {
-        await this.inicializar();
-        return new Promise((resolve, reject) => {
-            const transaction = this.db.transaction([storeName], 'readwrite');
-            const store = transaction.objectStore(storeName);
-            const request = store.put(value, key);
-
-            request.onsuccess = () => resolve();
-            request.onerror = (e) => reject(e.target.error);
-        });
+        // Persistência desativada (apenas memória da sessão)
+        return Promise.resolve();
     }
 
     /**
@@ -70,15 +38,8 @@ class BancoNavegador {
      * @returns {Promise<any>}
      */
     async get(storeName, key) {
-        await this.inicializar();
-        return new Promise((resolve, reject) => {
-            const transaction = this.db.transaction([storeName], 'readonly');
-            const store = transaction.objectStore(storeName);
-            const request = store.get(key);
-
-            request.onsuccess = (e) => resolve(e.target.result);
-            request.onerror = (e) => reject(e.target.error);
-        });
+        // Sempre retorna nulo, forçando carregamento limpo
+        return Promise.resolve(null);
     }
 
     /**
@@ -88,15 +49,7 @@ class BancoNavegador {
      * @returns {Promise<void>}
      */
     async delete(storeName, key) {
-        await this.inicializar();
-        return new Promise((resolve, reject) => {
-            const transaction = this.db.transaction([storeName], 'readwrite');
-            const store = transaction.objectStore(storeName);
-            const request = store.delete(key);
-
-            request.onsuccess = () => resolve();
-            request.onerror = (e) => reject(e.target.error);
-        });
+        return Promise.resolve();
     }
 
     /**
@@ -105,15 +58,7 @@ class BancoNavegador {
      * @returns {Promise<string[]>}
      */
     async keys(storeName) {
-        await this.inicializar();
-        return new Promise((resolve, reject) => {
-            const transaction = this.db.transaction([storeName], 'readonly');
-            const store = transaction.objectStore(storeName);
-            const request = store.getAllKeys();
-
-            request.onsuccess = (e) => resolve(e.target.result);
-            request.onerror = (e) => reject(e.target.error);
-        });
+        return Promise.resolve([]);
     }
 
     /**
@@ -122,15 +67,7 @@ class BancoNavegador {
      * @returns {Promise<void>}
      */
     async clear(storeName) {
-        await this.inicializar();
-        return new Promise((resolve, reject) => {
-            const transaction = this.db.transaction([storeName], 'readwrite');
-            const store = transaction.objectStore(storeName);
-            const request = store.clear();
-
-            request.onsuccess = () => resolve();
-            request.onerror = (e) => reject(e.target.error);
-        });
+        return Promise.resolve();
     }
 }
 

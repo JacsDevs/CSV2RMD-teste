@@ -8,6 +8,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>  
     <!-- Fontes -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">   
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Estilo Principal -->
     <link rel="stylesheet" href="static/css/style.css">
     
@@ -75,6 +77,20 @@
             justify-content: space-between;
             align-items: center;
         }
+
+        /* Classes de erro no editor */
+        .editor-list-item.error-fields {
+            background-color: #fffbeb !important;
+            border-left: 4px solid #f59e0b !important;
+        }
+        .editor-list-item.error-media {
+            background-color: #fef2f2 !important;
+            border-left: 4px solid #ef4444 !important;
+        }
+        .editor-list-item.error-both {
+            background-color: #fef2f2 !important;
+            border-left: 4px solid #8b5cf6 !important;
+        }
         
         .step-title-large {
             font-size: 1.5em;
@@ -89,6 +105,48 @@
             from { opacity: 0; transform: translateY(5px); } 
             to { opacity: 1; transform: translateY(0); } 
         }
+
+        /* --- Estilos do Editor Visual e Preview --- */
+        .preview-tabs {
+            display: flex;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            border-radius: 8px 8px 0 0;
+            padding: 10px 10px 0 10px;
+            gap: 5px;
+        }
+        
+        .preview-tab {
+            padding: 8px 15px;
+            border: 1px solid transparent;
+            border-bottom: none;
+            background: transparent;
+            color: var(--text-muted);
+            cursor: pointer;
+            border-radius: 6px 6px 0 0;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .preview-tab:hover {
+            background: rgba(0,0,0,0.05);
+        }
+        
+        .preview-tab.active {
+            background: #fff;
+            color: var(--primary);
+            border-color: var(--border-color);
+        }
+        
+        .preview-content {
+            background: #fff;
+            border: 1px solid var(--border-color);
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            padding: 20px;
+            min-height: 400px;
+            overflow-y: auto;
+        }
     </style>
 </head>
 <body>
@@ -98,13 +156,8 @@
         <header class="app-header">
             <h1>CSV2DMLI <span class="badge">Assistente</span></h1>
             <div class="header-actions">
-                <button class="btn btn-sm btn-outline" onclick="carregarEstado()">📂 Carregar</button>
-                <button class="btn btn-sm btn-primary" onclick="salvarEstado()">💾 Salvar</button>
                 <button class="btn btn-sm btn-custom" onclick="document.getElementById('modalCustomizacao').showModal()">⚙️ Customização</button>
-                <button class="btn btn-sm btn-new-project" onclick="limparMemoria()" title="Limpar tudo e começar um novo projeto">
-                    <span class="btn-icon">🗑️</span>
-                    <span class="btn-text">Novo Projeto</span>
-                </button>
+                <button class="btn btn-sm btn-primary" id="btn-abrir-editor" onclick="abrirModalEditor()">📝 Editor Visual</button>
             </div>
         </header>
 
@@ -145,9 +198,15 @@
 
                         <div class="divider-text" style="margin: 20px 0;"><span>ou</span></div>
 
-                        <div class="drop-zone" id="csvDropZone">
-                            <p>📄 Arraste o <b>dicionario.csv</b> aqui</p>
-                            <input type="file" id="fileCsv" accept=".csv" style="display:none">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                            <div class="drop-zone" id="csvDropZone">
+                                <p>📄 Arraste o <b>dicionario.csv</b> aqui</p>
+                                <input type="file" id="fileCsv" accept=".csv" style="display:none">
+                            </div>
+                            <div class="drop-zone" id="zipProjetoDropZone">
+                                <p>📦 <strong>Extrair Projeto ZIP</strong><br><span style="font-size: 0.8em; color: var(--text-muted);">Importa CSV + Mídias</span></p>
+                                <input type="file" id="fileZipProjeto" accept=".zip" style="display:none">
+                            </div>
                         </div>
                         
                         <div class="mini-stats" style="margin-top: 15px;">
@@ -289,10 +348,6 @@
                                 </div>
                             </label>
                         </div>
-                          <div style="margin-bottom: 25px; padding: 15px; background: #f8fafc; border-radius: 8px; border: 1px solid var(--border-color); text-align: center;">
-                              <button class="btn btn-primary" onclick="abrirModalEditor()" style="width: 100%; font-size: 1.1em; padding: 12px;"><i class="fas fa-edit"></i> 📝 Abrir Editor Visual (Live Preview)</button>
-                              <p style="font-size: 0.85em; color: var(--text-muted); margin-top: 10px;">Edite e pré-visualize suas entradas antes de exportar o arquivo final.</p>
-                          </div>
                           
                           <div class="export-grid">
                             <button class="export-btn export-html" onclick="exportarHTML()"><span class="export-icon">🌐</span><span class="export-label">Gerar Site HTML</span></button>
@@ -418,18 +473,69 @@
 <div class="modal-overlay-editor" id="modalEditorOverlay" style="display: none;" onclick="fecharModalEditor()">
     <div class="modal-editor" onclick="event.stopPropagation()">
         <div class="modal-editor-header">
-            <h3>📝 Editor</h3>
-            <div style="display: flex; gap: 8px;"><span id="editorCounter">0 itens</span><button id="btnFiltrarErros"></button><input id="editorSearch"></div>
+            <h3>📝 Editor de Entradas</h3>
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <span id="editorCounter" style="font-size: 12px; color: var(--text-muted);">0 itens</span>
+                <button class="btn btn-sm btn-outline" onclick="verificarMidiasNoEditor()">🔍 Mídias</button>
+                <button class="btn btn-sm btn-outline" onclick="verificarCamposNoEditor()">⚠️ Campos</button>
+                <button class="btn btn-sm btn-filter" id="btnFiltrarErros" onclick="toggleFiltroErros()" style="background:#fef3c7; border-color:#f59e0b; color:#92400e; display: none;">⚠️ Filtrar erros (0)</button>
+                <button class="btn btn-sm btn-success" onclick="exportarCSV(); event.stopPropagation();">📥 CSV</button>
+                <button class="btn btn-sm btn-outline" onclick="fecharModalEditor()">✕ Fechar</button>
+            </div>
         </div>
         <div class="modal-editor-body">
-            <div class="editor-sidebar"><div id="editorListaItens"></div></div>
+            <div class="editor-sidebar">
+                <input type="text" class="search-input" id="editorSearch" placeholder="🔍 Buscar palavra..." oninput="filtrarListaEditor()">
+                <div class="editor-list" id="editorListaItens"></div>
+            </div>
             
             <div class="editor-split-pane">
-                <div class="editor-form-pane" id="editorFormContainer">
-                    <div id="editorEmptyState"></div>
-                    <div id="editorFormContent">
-                        <input id="einp_ITEM_LEXICAL"><input id="einp_CLASSE_GRAMATICAL"><input id="einp_CAMPO_SEMANTICO"><input id="einp_SUB_CAMPO_SEMANTICO"><input id="einp_TRADUCAO_SIGNIFICADO"><input id="einp_ITENS_RELACIONADOS"><textarea id="einp_DESCRICAO"></textarea><input id="einp_ARQUIVO_VIDEO">
-                        <div id="econtainer-vars"></div><div id="econtainer-exs"></div><div id="econtainer-imgs"></div>
+                <div class="editor-form-pane editor-form" id="editorFormContainer">
+                    <div id="editorEmptyState" class="editor-empty-state">
+                        <h3>Selecione um item na lista</h3>
+                        <p>Clique em uma palavra para editar suas propriedades.</p>
+                    </div>
+                    <div id="editorFormContent" style="display: none;">
+                        <div class="tabs">
+                            <button class="tab-btn active" onclick="switchTabEditor(event, 'etab-dados')">Dados</button>
+                            <button class="tab-btn" onclick="switchTabEditor(event, 'etab-vars')">Variações</button>
+                            <button class="tab-btn" onclick="switchTabEditor(event, 'etab-exs')">Exemplos</button>
+                            <button class="tab-btn" onclick="switchTabEditor(event, 'etab-imgs')">Imagens</button>
+                            <button class="tab-btn" onclick="switchTabEditor(event, 'etab-video')">Vídeos</button>
+                        </div>
+                        <div id="etab-dados" class="tab-content active">
+                            <div class="grid-row">
+                                <div class="form-group"><label>Item Lexical *</label><input type="text" id="einp_ITEM_LEXICAL"></div>
+                                <div class="form-group"><label>Classe Gramatical</label><input type="text" id="einp_CLASSE_GRAMATICAL"></div>
+                            </div>
+                            <div class="grid-row">
+                                <div class="form-group"><label>Campo Semântico *</label><input type="text" id="einp_CAMPO_SEMANTICO"></div>
+                                <div class="form-group"><label>Sub-Campo Semântico</label><input type="text" id="einp_SUB_CAMPO_SEMANTICO"></div>
+                            </div>
+                            <div class="grid-row">
+                                <div class="form-group"><label>Tradução / Significado *</label><input type="text" id="einp_TRADUCAO_SIGNIFICADO"></div>
+                                <div class="form-group"><label>Itens Relacionados</label><input type="text" id="einp_ITENS_RELACIONADOS"></div>
+                            </div>
+                            <div class="form-group"><label>Descrição</label><textarea id="einp_DESCRICAO"></textarea></div>
+                        </div>
+                        <div id="etab-vars" class="tab-content">
+                            <div id="econtainer-vars"></div>
+                            <button class="btn btn-add" onclick="adicionarBlocoEditor('vars')">+ Variação Lexical</button>
+                        </div>
+                        <div id="etab-exs" class="tab-content">
+                            <div id="econtainer-exs"></div>
+                            <button class="btn btn-add" onclick="adicionarBlocoEditor('exs')">+ Exemplo</button>
+                        </div>
+                        <div id="etab-imgs" class="tab-content">
+                            <div id="econtainer-imgs"></div>
+                            <button class="btn btn-add" onclick="adicionarBlocoEditor('imgs')">+ Imagem</button>
+                        </div>
+                        <div id="etab-video" class="tab-content">
+                            <div class="form-group"><label>Arquivos de Vídeo (| para múltiplos)</label><input type="text" id="einp_ARQUIVO_VIDEO"></div>
+                        </div>
+                        <div style="margin-top: 20px; text-align: right;">
+                            <button class="btn btn-primary" onclick="salvarEdicaoAtual()">💾 Salvar Alterações</button>
+                        </div>
                     </div>
                 </div>
                 
@@ -463,6 +569,80 @@
     </div>
 </div>
 
+<!-- Logger do Terminal -->
+<script>
+    function formatarMensagem(msg) {
+        if (typeof msg === 'object') {
+            try { return JSON.stringify(msg, null, 2); } catch(e) { return String(msg); }
+        }
+        return String(msg);
+    }
+    
+    function adicionarLogAoTerminal(msg, tipo = 'info') {
+        const terminal = document.getElementById('terminal');
+        if (!terminal) return;
+        
+        let color = '#a3a3a3'; // info
+        if (tipo === 'error') color = '#ef4444';
+        else if (tipo === 'warn') color = '#f59e0b';
+        else if (tipo === 'success') color = '#22c55e';
+
+        const linha = document.createElement('div');
+        linha.style.color = color;
+        linha.style.marginBottom = '4px';
+        linha.style.fontFamily = 'monospace';
+        linha.style.whiteSpace = 'pre-wrap';
+        linha.style.wordBreak = 'break-word';
+        
+        const tempo = new Date().toLocaleTimeString('pt-BR');
+        linha.innerHTML = `<span style="color: #666; font-size: 0.85em;">[${tempo}]</span> ${formatarMensagem(msg)}`;
+        
+        terminal.appendChild(linha);
+        terminal.scrollTop = terminal.scrollHeight;
+    }
+
+    const originalLog = console.log;
+    const originalWarn = console.warn;
+    const originalError = console.error;
+
+    console.log = function(...args) {
+        originalLog.apply(console, args);
+        adicionarLogAoTerminal(args.map(formatarMensagem).join(' '), 'info');
+    };
+    
+    console.warn = function(...args) {
+        originalWarn.apply(console, args);
+        adicionarLogAoTerminal(args.map(formatarMensagem).join(' '), 'warn');
+    };
+    
+    console.error = function(...args) {
+        originalError.apply(console, args);
+        adicionarLogAoTerminal(args.map(formatarMensagem).join(' '), 'error');
+    };
+
+    window.addEventListener('error', function(e) {
+        adicionarLogAoTerminal(`Erro não tratado: ${e.message} at ${e.filename}:${e.lineno}`, 'error');
+    });
+
+    window.addEventListener('unhandledrejection', function(e) {
+        adicionarLogAoTerminal(`Promise rejeitada: ${e.reason}`, 'error');
+    });
+
+    window.limparTerminal = function() {
+        const terminal = document.getElementById('terminal');
+        if (terminal) terminal.innerHTML = '';
+        console.log("Terminal limpo.");
+    };
+
+    window.copiarTerminal = async function() {
+        const terminal = document.getElementById('terminal');
+        if (terminal) {
+            await navigator.clipboard.writeText(terminal.innerText);
+            alert("Terminal copiado!");
+        }
+    };
+</script>
+
 <!-- Dependências Externas -->
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script type="module">
@@ -478,6 +658,7 @@
     import ModuloExportacao from './src/modulos/moduloExportacao.js';
     import ValidadorDados from './src/modulos/validadorDados.js';
     import Configurador from './src/utils/configurador.js';
+    import ModuloEditor from './src/modulos/moduloEditor.js';
     
     // 1. Criar instâncias do sistema modular
     window.configurador = new Configurador();
@@ -485,11 +666,11 @@
     window.sistema = new GerenciadorDados(window.configurador);
     window.carregadorPasta = null;
     window.exportador = null;
+    window.editor = null;
     window.validador = new ValidadorDados(window.sistema);
     
     // 2. Funções Globais de Compatibilidade para a Interface do Assistente
-    window.salvarEstado = () => console.log("Estado salvo");
-    window.carregarEstado = () => console.log("Estado carregado");
+
     
     window.baixarArquivoPadrao = async function(url, nomeSalvo) {
         try {
@@ -530,8 +711,24 @@
     window.validarTudo = function() {
         const diagnostico = window.validador.diagnosticar();
         const html = window.validador.gerarRelatorioHtml(diagnostico);
+        
+        let relatorioTxt = "Relatório não gerado.";
+        if (typeof window.validador.gerarRelatorioTexto === 'function') {
+            relatorioTxt = window.validador.gerarRelatorioTexto(diagnostico);
+        }
+        
+        window._ultimoRelatorioTxt = relatorioTxt;
+        
+        const btnDownload = `
+            <div style="margin-top: 20px; text-align: center;">
+                <button class="btn btn-primary" onclick="window.exportador.salvarArquivo(window._ultimoRelatorioTxt, 'relatorio_validacao.txt', 'text/plain')">
+                    💾 Baixar Relatório (TXT)
+                </button>
+            </div>
+        `;
+        
         document.getElementById('modalTitle').textContent = 'Relatório de Validação e Cruzamento';
-        document.getElementById('modalContent').innerHTML = html;
+        document.getElementById('modalContent').innerHTML = html + btnDownload;
         document.getElementById('modalOverlay').style.display = 'flex';
     };
     
@@ -578,12 +775,7 @@
         }
     });
     
-    window.limparMemoria = function() {
-        if(confirm("Deseja limpar todos os dados do projeto atual?")) {
-            window.sistema.limpar();
-            console.log("Sistema limpo!");
-        }
-    };
+
     
     window.carregarPasta = function(tipo) {
         const input = document.createElement('input');
@@ -594,14 +786,29 @@
         if (tipo === 'video') input.accept = 'video/*';
         
         input.onchange = e => {
-            if (e.target.files.length > 0) window.sistema.adicionarMidias(e.target.files);
+            const files = e.target.files;
+            window.sistema.carregarPastaVirtual(tipo, Array.from(files)).catch(err => {
+                alert(`Erro ao carregar arquivos: ${err.message}`);
+            });
         };
         input.click();
     };
+
+    // Prevenção de perda de dados ao recarregar a página
+    window.addEventListener('beforeunload', function (e) {
+        // Apenas avisa se houver dados carregados no sistema
+        if (window.sistema && window.sistema.dadosPlanilha && window.sistema.dadosPlanilha.length > 0) {
+            // A mensagem customizada geralmente é ignorada pelos navegadores modernos,
+            // mas o preventDefault() e o returnValue ativam a janela de confirmação padrão do navegador.
+            e.preventDefault();
+            e.returnValue = 'Você tem dados carregados que não foram exportados. Tem certeza que deseja sair e perder as alterações?';
+        }
+    });
     
     window.exportarHTML = async function() {
         if (!window.exportador) return alert('Exportador não inicializado!');
-        const embutir = document.getElementById('swMidia')?.checked || false;
+        const swMidia = document.getElementById('swMidia');
+        const embutir = swMidia ? swMidia.checked : false;
         
         // Pega do novo select do Passo 5, com fallback pro antigo do modal
         const selectWizard = document.getElementById('templateExportacaoSelect');
@@ -631,38 +838,194 @@
         await window.sistema.inicializar();
         window.carregadorPasta = new CarregadorPasta(window.sistema.configurador, window.sistema.vfs, window.sistema);
         window.exportador = new ModuloExportacao(window.sistema);
+        window.editor = new ModuloEditor(window.sistema);
         
-        // Intercepta para Visualizar na aba em vez de baixar o arquivo
-        window.exportador.salvarArquivoBlob = function(blob, nomeArquivo) {
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.target = '_blank';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            setTimeout(() => URL.revokeObjectURL(url), 5000);
-            console.log(`👁️ Visualizando: ${nomeArquivo}`);
+        // Ligações do Editor UI
+        window.sistema.abrirEditorParaItem = (indice) => window.editor.obterItemParaEdicao(indice);
+        window.sistema.salvarItemEditado = (indice, dados) => window.editor.salvarEdicao(indice, dados);
+        window.sistema.obterTodosDadosBrutos = () => {
+            return (window.sistema.dadosPlanilha || []).map((linha, idx) => {
+                const varItem = linha.variacoes?.[0]?.item;
+                const item = varItem ? varItem : (linha.camposBasicos?.ITEM_LEXICAL || linha.ITEM_LEXICAL || '');
+                return {
+                    indice: idx,
+                    itemLexical: item ? item.split('|')[0].trim() : `Linha ${idx + 1}`
+                };
+            });
+        };
+        window.sistema.gerarPreview = async (dadosNormalizados, formato) => {
+            if (!window.exportador) return null;
+            
+            const variacoes = dadosNormalizados.variacoes || [];
+            const campos = dadosNormalizados.camposBasicos || {};
+            const exemplos = dadosNormalizados.exemplos || [];
+            const imagens = dadosNormalizados.imagens || [];
+            
+            const termos = variacoes.map(v => v.item).filter(Boolean);
+            const fonemicas = variacoes.map(v => v.fone).filter(Boolean);
+            const foneticas = variacoes.map(v => v.fonet).filter(Boolean);
+            const audios = variacoes.map(v => v.audio).filter(Boolean);
+            
+            let significado = {
+                NUMERO: '',
+                TRADUCAO: campos.TRADUCAO_SIGNIFICADO || '',
+                DESCRICAO: campos.DESCRICAO || '',
+                EXEMPLOS: exemplos.map(e => ({ TRANS: e.trans || '', TRAD: e.trad || '', AUDIO: e.audio || '' })),
+                IMAGENS: imagens.map(i => ({ ARQUIVO: i.img ? decodeURIComponent(i.img.split('/').pop().split('\\').pop()).replace(/[{}]/g, '').trim().toLowerCase() : '', LEGENDA: i.leg || '' })).filter(i => i.ARQUIVO),
+                VIDEOS: campos.ARQUIVO_VIDEO ? [{ARQUIVO: campos.ARQUIVO_VIDEO.split('/').pop().split('\\').pop()}] : [],
+                EXTRAS: []
+            };
+            
+            const itemProcessado = {
+                TERMO: termos.length > 0 ? termos.join(' ~ ') : (campos.ITEM_LEXICAL || '???'),
+                TERMO_PARENT: termos[0] || campos.ITEM_LEXICAL || '???',
+                CLASSE: campos.CLASSE_GRAMATICAL || '',
+                CAMPO_SEMANTICO: campos.CAMPO_SEMANTICO || '',
+                SUB_CAMPO_SEMANTICO: campos.SUB_CAMPO_SEMANTICO || '',
+                FONEMICA: fonemicas.join(' ~ '),
+                FONETICA: foneticas.join(' ~ '),
+                AUDIO: audios.join(' ~ '),
+                SIGNIFICADOS: [significado],
+                ITENS_RELACIONADOS: campos.ITENS_RELACIONADOS || '',
+                INDEX: campos.TRADUCAO_SIGNIFICADO || '',
+                TEXTOS_ESTRUTURADOS: []
+            };
+
+            const resolverMidiasVFS = (htmlRaw) => {
+                const template = document.createElement('template');
+                template.innerHTML = htmlRaw;
+                const frag = template.content;
+                const elements = frag.querySelectorAll('[data-dmli-media], img, audio, video, source');
+                
+                for (const el of elements) {
+                    let mediaName = el.getAttribute('data-dmli-media') || el.getAttribute('src');
+                    if (mediaName && !mediaName.startsWith('http') && !mediaName.startsWith('blob:') && !mediaName.startsWith('data:')) {
+                        mediaName = decodeURIComponent(mediaName.split('/').pop().split('\\').pop()).replace(/[{}]/g, '').trim();
+                        
+                        // Busca no VFS usando o nome do arquivo final
+                        const fileUrl = window.sistema.vfs.obterUrl('imagem', mediaName) || 
+                                        window.sistema.vfs.obterUrl('audio', mediaName) || 
+                                        window.sistema.vfs.obterUrl('video', mediaName);
+                        
+                        if (fileUrl) {
+                            el.src = fileUrl;
+                            if (el.tagName === 'AUDIO' || el.tagName === 'VIDEO') {
+                                el.load();
+                            } else if (el.tagName === 'SOURCE') {
+                                const parent = el.parentElement;
+                                if (parent && (parent.tagName === 'AUDIO' || parent.tagName === 'VIDEO')) {
+                                    parent.load();
+                                }
+                            }
+                        } else {
+                            el.removeAttribute('src'); // Prevent 404 if not in VFS
+                        }
+                    }
+                }
+                const divWrapper = document.createElement('div');
+                divWrapper.appendChild(frag.cloneNode(true));
+                return divWrapper.innerHTML;
+            };
+
+            if (formato === 'preview-html-card') {
+                const html = window.exportador.exportadorCards.processarTemplate(window.exportador.exportadorCards.templateEntrada, itemProcessado);
+                return resolverMidiasVFS(html);
+            } else if (formato === 'preview-html-linear') {
+                const html = window.exportador.exportadorLinear.processarTemplate(window.exportador.exportadorLinear.templateEntrada, itemProcessado);
+                return resolverMidiasVFS(html);
+            } else if (formato === 'preview-pdf') {
+                const strTypst = window.exportador.exportadorTypstModule.processarTemplate(window.exportador.exportadorTypstModule.templateEntrada, itemProcessado);
+                const docTypst = `#let index(..args) = {}\n#import "/in-dexter.typ": *\n#set page(width: 15cm, height: auto, margin: 10pt)\n#set text(font: ("Charis SIL", "Arial"), fallback: true)\n${strTypst}`;
+                console.log("=== CÓDIGO TYPST GERADO PARA O PREVIEW ===");
+                console.log(docTypst);
+                try {
+                    const blob = await window.exportador.compiladorPdf.gerarPdf(docTypst);
+                    return URL.createObjectURL(blob);
+                } catch(e) {
+                    console.error("Erro ao gerar preview PDF", e);
+                    return null;
+                }
+            }
         };
         
         await window.exportador.inicializar();
         
         // Vincula botões HTML aos Eventos do Carregador de Arquivos (Upload)
-        document.getElementById('filePastaProjeto').addEventListener('change', async e => {
-            if (e.target.files.length > 0) {
-                document.getElementById('statusCsv').textContent = 'Processando pasta...';
-                await window.carregadorPasta.carregarPasta(e.target.files);
+        const filePastaProj = document.getElementById('filePastaProjeto');
+        if (filePastaProj) {
+            filePastaProj.addEventListener('change', async e => {
+                if (e.target.files.length > 0) {
+                    const statusEl = document.getElementById('statusCsv');
+                    if(statusEl) statusEl.textContent = 'Processando pasta...';
+                    await window.carregadorPasta.carregarPasta(e.target.files);
+                }
+            });
+        }
+        
+        const fileCsvIn = document.getElementById('fileCsv');
+        if (fileCsvIn) {
+            fileCsvIn.addEventListener('change', async e => {
+                if (e.target.files.length > 0) {
+                    const statusEl = document.getElementById('statusCsv');
+                    if(statusEl) statusEl.textContent = 'Processando CSV...';
+                    await window.sistema.carregarPlanilha(e.target.files[0]);
+                }
+            });
+        }
+
+        // --- SISTEMA DE TEMPLATES CUSTOMIZADOS ---
+        const templatesCustomizados = [
+            { id: 'fileTemplateHtml', key: 'csv2dmli_template_html' },
+            { id: 'fileTemplateEntradaCardHtml', key: 'csv2dmli_templateEntradaCardHtml' },
+            { id: 'fileTemplateHtmlLinear', key: 'csv2dmli_template_html-linear' },
+            { id: 'fileTemplateEntradaLinearHtml', key: 'csv2dmli_templateEntradaLinearHtml' },
+            { id: 'fileTemplateTypst', key: 'csv2dmli_template_typst' },
+            { id: 'fileTemplateEntradaTypst', key: 'csv2dmli_templateEntradaTypst' }
+        ];
+
+        templatesCustomizados.forEach(t => {
+            const el = document.getElementById(t.id);
+            if (el) {
+                // Ao clicar no DropZone, aciona o input oculto
+                const dropZone = document.getElementById(t.id.replace('file', '').charAt(0).toLowerCase() + t.id.replace('file', '').slice(1) + 'Zone');
+                if (dropZone) {
+                    dropZone.addEventListener('click', () => { el.value = null; el.click(); });
+                    el.addEventListener('click', e => e.stopPropagation());
+                }
+
+                el.addEventListener('change', async e => {
+                    if (e.target.files.length > 0) {
+                        const file = e.target.files[0];
+                        const text = await file.text();
+                        localStorage.setItem(t.key, text);
+                        console.log(`✅ Template customizado salvo: ${file.name}`);
+                        if (window.exportador) await window.exportador.inicializar();
+                        alert(`Template ${file.name} carregado com sucesso!`);
+                    }
+                });
             }
         });
-        document.getElementById('fileCsv').addEventListener('change', async e => {
-            if (e.target.files.length > 0) {
-                document.getElementById('statusCsv').textContent = 'Processando CSV...';
-                await window.sistema.carregarPlanilha(e.target.files[0]);
-            }
-        });
+        // -----------------------------------------
+
         // Engatilha os inputs escondidos nas DropZones
-        document.getElementById('pastaProjetoDropZone').addEventListener('click', () => document.getElementById('filePastaProjeto').click());
-        document.getElementById('csvDropZone').addEventListener('click', () => document.getElementById('fileCsv').click());
+        const csvDrop = document.getElementById('csvDropZone');
+        if (csvDrop && fileCsvIn) {
+            csvDrop.addEventListener('click', () => { fileCsvIn.value = null; fileCsvIn.click(); });
+            fileCsvIn.addEventListener('click', e => e.stopPropagation());
+        }
+
+        const zipDrop = document.getElementById('zipProjetoDropZone');
+        const fileZip = document.getElementById('fileZipProjeto');
+        if (zipDrop && fileZip) {
+            zipDrop.addEventListener('click', () => { fileZip.value = null; fileZip.click(); });
+            fileZip.addEventListener('click', e => e.stopPropagation());
+        }
+
+        const pastaDrop = document.getElementById('pastaProjetoDropZone');
+        if (pastaDrop && filePastaProj) {
+            pastaDrop.addEventListener('click', () => { filePastaProj.value = null; filePastaProj.click(); });
+            filePastaProj.addEventListener('click', e => e.stopPropagation());
+        }
         
         // Atualizador de interface do Wizard (Polling)
         setInterval(() => {

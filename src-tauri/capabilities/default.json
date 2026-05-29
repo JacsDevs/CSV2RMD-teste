@@ -8,6 +8,10 @@
   "permissions": [
     "core:default",
     "dialog:default",
-    "fs:default"
+    "fs:default",
+    "fs:allow-desktop-write",
+    "fs:allow-document-write",
+    "fs:allow-download-write",
+    "fs:allow-home-write"
   ]
 }
