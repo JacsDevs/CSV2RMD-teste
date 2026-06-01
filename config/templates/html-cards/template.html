@@ -593,29 +593,28 @@
         // FUNÇÕES AUXILIARES
         // ==============================================
         function resolverMidia(nomeArquivo, pasta) {
-    if (!nomeArquivo) return '';
-    
-    const midias = window.DicionarioMidias || {};
-    const fonte = midias[nomeArquivo];
-    
-    if (!fonte) {
-        // Fallback: caminho relativo
-        return `${pasta}/${nomeArquivo}`;
-    }
-    
-    // Se for Base64 (data:), usa direto
-    if (fonte.startsWith('data:')) {
-        return fonte;
-    }
-    
-    // Se for caminho relativo (audio/, foto/, video/)
-    if (fonte.startsWith(pasta + '/') || fonte.startsWith(pasta)) {
-        return fonte;
-    }
-    
-    // Fallback
-    return `${pasta}/${nomeArquivo}`;
-}
+            if (!nomeArquivo) return '';
+            
+            // Se já for um Base64 ou Blob URL, devolve direto
+            if (nomeArquivo.startsWith('data:') || nomeArquivo.startsWith('blob:')) {
+                return nomeArquivo;
+            }
+            
+            // Se já tiver a pasta no caminho (ex: foto/gato.jpg)
+            if (nomeArquivo.startsWith(pasta + '/')) {
+                return nomeArquivo;
+            }
+            
+            const midias = window.DicionarioMidias || {};
+            const fonte = midias[nomeArquivo];
+            
+            if (fonte) {
+                return fonte;
+            }
+            
+            // Fallback: caminho relativo
+            return `${pasta}/${nomeArquivo}`;
+        }
 
         function criarCard(item) {
             const card = document.createElement('div');

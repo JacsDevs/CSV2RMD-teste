@@ -63,7 +63,6 @@
             <button onclick="exportarHtmlLinear(true)">📦 HTML Linear (Embutido)</button>
             <button onclick="exportarTypst()">📘 Typst (.typ)</button>
             <button onclick="exportarPdf()">📕 PDF Nativo</button>
-            <button onclick="exportarZip()">🗜️ Projeto Completo (.zip)</button>
         </div>
 
         <div class="card">
@@ -209,23 +208,6 @@
             }
         };
 
-        window.exportarZip = async function() {
-            if (!window.exportador) return alert('Exportador não inicializado!');
-            if (!window.sistema.bancoDados) return alert('Carregue uma pasta com dados primeiro!');
-            
-            const status = document.getElementById('status');
-            status.textContent = '⏳ Gerando pacote ZIP... Aguarde (pode demorar dependendo das mídias).';
-            status.className = 'status info';
-            
-            try {
-                await window.exportador.exportarZip('dicionario_completo.zip');
-                status.textContent = '✅ Arquivo ZIP gerado com sucesso!';
-                status.className = 'status ok';
-            } catch (erro) {
-                status.textContent = `❌ Erro ao exportar ZIP: ${erro.message}`;
-                status.className = 'status error';
-            }
-        };
 
         window.buscarTermo = function() {
             const termo = document.getElementById('busca').value;

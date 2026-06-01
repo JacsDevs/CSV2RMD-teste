@@ -82,24 +82,43 @@ class ExportadorBase {
                 });
                 if (ac.IMAGENS_IDS) ac.IMAGENS_IDS.forEach(imgId => {
                     const img = banco.imagens[imgId];
-                    if (img && img.IMAGEM) significado.IMAGENS.push({ ARQUIVO: decodeURIComponent(img.IMAGEM.split('/').pop().split('\\').pop()).replace(/[{}]/g, '').trim().toLowerCase(), LEGENDA: img.LEGENDA_IMAGEM || '' });
+                    if (img && img.IMAGEM) {
+                        const raw = img.IMAGEM.split(/[\/\\]/).pop();
+                        const limpo = decodeURIComponent(raw).replace(/[{}]/g, '').trim().toLowerCase();
+                        const fallbackPath = 'foto/' + limpo;
+                        const url = (this.midiasGeradas && this.midiasGeradas[raw]) ? this.midiasGeradas[raw] : fallbackPath;
+                        significado.IMAGENS.push({ ARQUIVO: url, LEGENDA: img.LEGENDA_IMAGEM || '' });
+                    }
                 });
-                if (ac.ARQUIVOS_VIDEO) ac.ARQUIVOS_VIDEO.forEach(vid => { if (vid) significado.VIDEOS.push({ ARQUIVO: vid }); });
+                if (ac.ARQUIVOS_VIDEO) ac.ARQUIVOS_VIDEO.forEach(vid => { 
+                    if (vid) {
+                        const raw = vid.split(/[\/\\]/).pop();
+                        const url = (this.midiasGeradas && this.midiasGeradas[raw]) ? this.midiasGeradas[raw] : 'video/' + raw;
+                        significado.VIDEOS.push({ ARQUIVO: url }); 
+                    }
+                });
                 if (ac.EXTRAS) ac.EXTRAS.forEach(ext => { if (ext) significado.EXTRAS.push({ TEXTO: ext }); });
                 
                 significados.push(significado);
             });
         }
         
+        const fonemicasStr = fonemicasUnicas.join(' ~ ');
+        const foneticasStr = foneticasUnicas.join(' ~ ');
+        const audiosUnicosResolved = audiosUnicos.map(a => {
+            const raw = a.split(/[\/\\]/).pop();
+            return (this.midiasGeradas && this.midiasGeradas[raw]) ? this.midiasGeradas[raw] : 'audio/' + raw;
+        });
+
         return {
             TERMO: termosUnicos.length > 0 ? termosUnicos.join(' ~ ') : (entrada._TERMO_PRINCIPAL || '???'),
             TERMO_PARENT: entrada._TERMO_PRINCIPAL || '???', 
             CLASSE: entrada.CLASSE_GRAMATICAL || '',
             CAMPO_SEMANTICO: entrada.CAMPO_SEMANTICO || '',
             SUB_CAMPO_SEMANTICO: entrada.SUB_CAMPOS_SEMANTICOS ? entrada.SUB_CAMPOS_SEMANTICOS.join(', ') : '',
-            FONEMICA: fonemicasUnicas.join(' ~ '),
-            FONETICA: foneticasUnicas.join(' ~ '),
-            AUDIO: audiosUnicos.join(' ~ '),
+            FONEMICA: fonemicasStr,
+            FONETICA: foneticasStr,
+            AUDIO: audiosUnicosResolved.join(' ~ '),
             SIGNIFICADOS: significados,  
             ITENS_RELACIONADOS: entrada.ITENS_RELACIONADOS || '',
             INDEX: significados.length > 0 ? significados[0].TRADUCAO : '',
@@ -186,6 +205,8 @@ class ExportadorBase {
                 }
             }
         }
+        
+        this.midiasGeradas = midias;
 
         // 2. Preparar os dados para a UI
         const entradasConvertidas = [];

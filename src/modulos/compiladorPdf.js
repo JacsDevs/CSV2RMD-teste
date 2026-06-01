@@ -116,7 +116,7 @@ export default class CompiladorPdf {
                     const nomeArquivo = caminhoOriginal.split('/').pop().split('\\').pop();
                     const buffer = await file.arrayBuffer();
                     const uint8 = new Uint8Array(buffer);
-                    const caminhoVirtual = `/${nomeArquivo}`;
+                    const caminhoVirtual = `/foto/${nomeArquivo}`;
                     
                     console.log(`[WASM INJECT] Injetando arquivo: ${caminhoVirtual} (${uint8.length} bytes)`);
                     

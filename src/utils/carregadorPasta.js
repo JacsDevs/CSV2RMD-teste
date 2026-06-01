@@ -30,6 +30,11 @@ class CarregadorPasta {
     async carregarPasta(arquivosLista) {
         console.log('📁 Processando pasta com', arquivosLista.length, 'arquivos');
         
+        // Ativar modo silencioso para não poluir terminal antes das mídias carregarem
+        if (this.gerenciador) {
+            this.gerenciador.silenciarAvisosMidia = true;
+        }
+        
         // Organizar arquivos por tipo e pasta
         const organizados = this._organizarArquivos(arquivosLista);
         
@@ -99,11 +104,20 @@ class CarregadorPasta {
             ...organizados.video
         ];
         
+        // Desativar silenciamento
+        if (this.gerenciador) {
+            this.gerenciador.silenciarAvisosMidia = false;
+        }
+        
         if (todasMidias.length > 0) {
             this.gerenciador.adicionarMidias(todasMidias);
             this.arquivosEncontrados.audio = organizados.audio;
             this.arquivosEncontrados.imagem = organizados.imagem;
             this.arquivosEncontrados.video = organizados.video;
+        } else {
+            if (this.gerenciador) {
+                this.gerenciador._reconstruirBanco();
+            }
         }
         
         return this.arquivosEncontrados;
@@ -131,7 +145,7 @@ class CarregadorPasta {
     // Obter o nome da pasta raiz selecionada (primeiro segmento de qualquer caminho)
     let pastaRaiz = null;
     for (const arquivo of arquivosLista) {
-        const caminhoCompleto = arquivo.webkitRelativePath || arquivo.name;
+        const caminhoCompleto = arquivo.caminhoPersonalizado || arquivo.webkitRelativePath || arquivo.name;
         const partes = caminhoCompleto.split('/');
         if (partes.length > 1) {
             pastaRaiz = partes[0];
@@ -151,7 +165,7 @@ class CarregadorPasta {
     const nomesMetadados = this.configurador.getNomesArquivo('metadados');
     
     for (const arquivo of arquivosLista) {
-        const caminhoCompleto = arquivo.webkitRelativePath || arquivo.name;
+        const caminhoCompleto = arquivo.caminhoPersonalizado || arquivo.webkitRelativePath || arquivo.name;
         const partes = caminhoCompleto.split('/');
         
         // Remover o nome da pasta raiz do caminho para análise

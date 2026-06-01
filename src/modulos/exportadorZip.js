@@ -29,9 +29,10 @@ class ExportadorZip {
             for (const tipo of tipos) {
                 const arquivos = this.db.vfs.obterTodosArquivos(tipo);
                 const nomes = this.db.vfs.obterTodosNomes(tipo);
+                const dirName = tipo === 'imagem' ? 'foto' : tipo;
                 
                 for (let i = 0; i < arquivos.length; i++) {
-                    zip.file(`${tipo}/${nomes[i]}`, arquivos[i]);
+                    zip.file(`${dirName}/${nomes[i]}`, arquivos[i]);
                 }
             }
         }

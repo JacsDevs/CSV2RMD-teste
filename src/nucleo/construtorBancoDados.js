@@ -10,9 +10,9 @@ class ConstrutorBancoDados {
         this.configurador = configurador;
     }
 
-    validarEContarMidia(db, tipo, arquivo) {
+    validarEContarMidia(db, tipo, arquivo, silenciarAvisos = false) {
         if (!arquivo) return true;
-        const existe = this.verificarMidia(tipo, arquivo);
+        const existe = this.verificarMidia(tipo, arquivo, silenciarAvisos);
         if (existe) {
             db.metadados.midiasValidadas[tipo].encontrados++;
         } else {
@@ -21,12 +21,12 @@ class ConstrutorBancoDados {
         return existe;
     }
 
-    verificarMidia(tipo, nomeArquivo) {
+    verificarMidia(tipo, nomeArquivo, silenciarAvisos = false) {
         if (!nomeArquivo) return false;
         
         const existe = this.vfs.obterArquivo(tipo, nomeArquivo) !== null;
         
-        if (!existe) {
+        if (!existe && !silenciarAvisos) {
             console.warn(`⚠️ Mídia não encontrada no VFS: ${tipo}/${nomeArquivo}`);
         }
         
@@ -48,7 +48,7 @@ class ConstrutorBancoDados {
         return null;
     }
 
-    normalizarDados(df) {
+    normalizarDados(df, silenciarAvisos = false) {
         const db = { 
             entradas: {}, 
             variacoes: {}, 
@@ -118,7 +118,7 @@ class ConstrutorBancoDados {
                 const lex = v.item || '';
                 const audioFile = v.audio || '';
                 
-                const audioExiste = this.validarEContarMidia(db, 'audio', audioFile);
+                const audioExiste = this.validarEContarMidia(db, 'audio', audioFile, silenciarAvisos);
                 
                 if (lex && !entrada.VARIACOES_IDS.some(vid => db.variacoes[vid] && db.variacoes[vid].TRANSCRICAO_ORTOGRAFICA === lex)) {
                     const varId = `${idEntrada}_VAR${i+1}`;
@@ -173,7 +173,7 @@ class ConstrutorBancoDados {
                 // ========== EXEMPLOS ==========
                 exemplos.forEach((e, i) => {
                     if (e.trans || e.trad || e.audio) {
-                        const exAudioExiste = this.validarEContarMidia(db, 'audio', e.audio);
+                        const exAudioExiste = this.validarEContarMidia(db, 'audio', e.audio, silenciarAvisos);
                         const exId = `${idAcepcao}_EX${contExemplos++}`;
                         db.exemplos[exId] = {
                             ID: exId,
@@ -190,7 +190,7 @@ class ConstrutorBancoDados {
                 // ========== IMAGENS ==========
                 imagens.forEach((imgObj, i) => {
                     if (imgObj.img) {
-                        const imgExiste = this.validarEContarMidia(db, 'imagem', imgObj.img);
+                        const imgExiste = this.validarEContarMidia(db, 'imagem', imgObj.img, silenciarAvisos);
                         const imgId = `${idAcepcao}_IMG${contImagens++}`;
                         db.imagens[imgId] = {
                             ID: imgId,
@@ -205,7 +205,7 @@ class ConstrutorBancoDados {
 
                 // ========== VÍDEOS ==========
                 if (camposBasicos.ARQUIVO_VIDEO) {
-                    const vidExiste = this.validarEContarMidia(db, 'video', camposBasicos.ARQUIVO_VIDEO);
+                    const vidExiste = this.validarEContarMidia(db, 'video', camposBasicos.ARQUIVO_VIDEO, silenciarAvisos);
                     const vidId = `${idAcepcao}_VID${contVideos++}`;
                     if (!db.videos) db.videos = {};
                     db.videos[vidId] = {

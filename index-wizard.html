@@ -6,6 +6,8 @@
     <title>CSV2DMLI - Assistente</title>    
     <!-- Papa Parse -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>  
+    <!-- JSZip -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <!-- Fontes -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">   
     <!-- Font Awesome -->
@@ -21,7 +23,7 @@
             box-shadow: 0 4px 20px rgba(0,0,0,0.05);
             display: flex;
             flex-direction: column;
-            min-height: 70vh;
+            min-height: 70%;
             margin-top: 20px;
             overflow: hidden;
         }
@@ -78,19 +80,7 @@
             align-items: center;
         }
 
-        /* Classes de erro no editor */
-        .editor-list-item.error-fields {
-            background-color: #fffbeb !important;
-            border-left: 4px solid #f59e0b !important;
-        }
-        .editor-list-item.error-media {
-            background-color: #fef2f2 !important;
-            border-left: 4px solid #ef4444 !important;
-        }
-        .editor-list-item.error-both {
-            background-color: #fef2f2 !important;
-            border-left: 4px solid #8b5cf6 !important;
-        }
+        
         
         .step-title-large {
             font-size: 1.5em;
@@ -106,47 +96,7 @@
             to { opacity: 1; transform: translateY(0); } 
         }
 
-        /* --- Estilos do Editor Visual e Preview --- */
-        .preview-tabs {
-            display: flex;
-            background: var(--bg-secondary);
-            border-bottom: 1px solid var(--border-color);
-            border-radius: 8px 8px 0 0;
-            padding: 10px 10px 0 10px;
-            gap: 5px;
-        }
         
-        .preview-tab {
-            padding: 8px 15px;
-            border: 1px solid transparent;
-            border-bottom: none;
-            background: transparent;
-            color: var(--text-muted);
-            cursor: pointer;
-            border-radius: 6px 6px 0 0;
-            font-weight: 500;
-            transition: all 0.2s;
-        }
-        
-        .preview-tab:hover {
-            background: rgba(0,0,0,0.05);
-        }
-        
-        .preview-tab.active {
-            background: #fff;
-            color: var(--primary);
-            border-color: var(--border-color);
-        }
-        
-        .preview-content {
-            background: #fff;
-            border: 1px solid var(--border-color);
-            border-top: none;
-            border-radius: 0 0 8px 8px;
-            padding: 20px;
-            min-height: 400px;
-            overflow-y: auto;
-        }
     </style>
 </head>
 <body>
@@ -157,7 +107,6 @@
             <h1>CSV2DMLI <span class="badge">Assistente</span></h1>
             <div class="header-actions">
                 <button class="btn btn-sm btn-custom" onclick="document.getElementById('modalCustomizacao').showModal()">⚙️ Customização</button>
-                <button class="btn btn-sm btn-primary" id="btn-abrir-editor" onclick="abrirModalEditor()">📝 Editor Visual</button>
             </div>
         </header>
 
@@ -175,11 +124,11 @@
                 
                 <!-- Stepper Superior -->
                 <div class="wizard-stepper">
-                    <div class="step-indicator active" id="indicator1" onclick="irParaPasso(1)">1. Fonte de Dados</div>
-                    <div class="step-indicator" id="indicator2" onclick="irParaPasso(2)">2. Mídias e Validação</div>
-                    <div class="step-indicator" id="indicator3" onclick="irParaPasso(3)">3. Metadados</div>
-                    <div class="step-indicator" id="indicator4" onclick="irParaPasso(4)">4. Estrutura</div>
-                    <div class="step-indicator" id="indicator5" onclick="irParaPasso(5)">5. Exportar</div>
+                    <div class="step-indicator active" id="indicator1" onclick="window.irParaPasso(1)">1. Fonte de Dados</div>
+                    <div class="step-indicator" id="indicator2" onclick="window.irParaPasso(2)">2. Mídias e Validação</div>
+                    <div class="step-indicator" id="indicator3" onclick="window.irParaPasso(3)">3. Metadados</div>
+                    <div class="step-indicator" id="indicator4" onclick="window.irParaPasso(4)">4. Estrutura</div>
+                    <div class="step-indicator" id="indicator5" onclick="window.irParaPasso(5)">5. Exportar</div>
                 </div>
                 
                 <!-- Corpo das Etapas -->
@@ -198,14 +147,10 @@
 
                         <div class="divider-text" style="margin: 20px 0;"><span>ou</span></div>
 
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div style="display: grid; grid-template-columns: 1fr; gap: 15px;">
                             <div class="drop-zone" id="csvDropZone">
                                 <p>📄 Arraste o <b>dicionario.csv</b> aqui</p>
                                 <input type="file" id="fileCsv" accept=".csv" style="display:none">
-                            </div>
-                            <div class="drop-zone" id="zipProjetoDropZone">
-                                <p>📦 <strong>Extrair Projeto ZIP</strong><br><span style="font-size: 0.8em; color: var(--text-muted);">Importa CSV + Mídias</span></p>
-                                <input type="file" id="fileZipProjeto" accept=".zip" style="display:none">
                             </div>
                         </div>
                         
@@ -233,16 +178,7 @@
                             </div>
                         </div>
                         
-                        <!-- Teste de Motor de Busca -->
-                        <div style="margin-top: 25px; background: #f0fdf4; border: 1px solid #bbf7d0; padding: 15px; border-radius: 8px;">
-                            <strong style="color: #166534;"><i class="fas fa-search"></i> Testar Motor de Busca (Fuzzy + Global)</strong>
-                            <p style="font-size: 12px; color: #15803d; margin: 5px 0 10px;">Busca tolerante a erros por termos, traduções e descrições.</p>
-                            <div style="display: flex; gap: 8px;">
-                                <input type="text" id="inputTesteBusca" placeholder="Ex: passaro, cachorro..." style="flex: 1; padding: 8px; border: 1px solid #86efac; border-radius: 4px;">
-                                <button class="btn btn-primary" onclick="testarBusca()">Buscar</button>
-                            </div>
-                            <div id="resultadoBuscaTeste" style="margin-top: 10px; font-size: 0.9em; max-height: 150px; overflow-y: auto;"></div>
-                        </div>
+
 
                         <div style="display: flex; gap: 10px; margin-top: 15px; background: #f8fafc; padding: 15px; border-radius: 8px;">
                             <div style="flex: 1;">
@@ -280,9 +216,6 @@
                         <div class="form-group" style="margin-top: 15px;">
                             <label>Introdução (Markdown)</label>
                             <textarea id="introMarkdown" placeholder="Escreva a introdução em Markdown..." rows="8" style="font-family: 'Fira Code', monospace; font-size: 13px;"></textarea>
-                            <div style="display: flex; gap: 8px; margin-top: 8px;">
-                                <button class="btn btn-sm btn-outline" onclick="previewIntroducao()" type="button">👁️ Pré-visualizar</button>
-                            </div>
                         </div>
                     </div>
 
@@ -292,29 +225,36 @@
                         <p class="step-desc" style="margin-bottom: 20px;">Configure a organização das entradas no layout de saída.</p>
                         
                         <div class="estrutura-grid">
-                            <div>
+                            <div class="estrutura-card">
                                 <h4>Ordem Alfabética</h4>
-                                <label class="toggle-label">
+                                <label class="toggle-label" style="margin-bottom: 10px;">
                                     <div class="toggle-switch">
                                         <input type="checkbox" id="swAlpha" checked>
                                         <div class="toggle-slider"></div>
                                     </div>
-                                    Manter ordem alfabética automática
+                                    Automático em todos os campos
                                 </label>
-                                <p id="instrucaoAlpha" style="display: none; font-size: 0.9em; color: #666; margin: 10px 0;">Selecione os campos onde quer manter a ordem original do CSV:</p>
-                                <div class="checkbox-grid" id="gridAlpha" style="display: none;"><span class="placeholder-text">Carregue o CSV primeiro</span></div>
+                                <div id="containerAlpha" style="display: none;">
+                                    <p style="font-size: 0.9em; color: #666; margin: 5px 0 10px 0;">Desmarque os campos que devem manter a <b>ordem original do CSV</b>:</p>
+                                    <label class="checkbox-tag select-all-tag" style="margin-bottom: 10px; font-weight: bold; background: #f1f5f9;">
+                                        <input type="checkbox" id="chkSelectAllAlpha" checked> Selecionar / Deselecionar Todos
+                                    </label>
+                                    <div class="checkbox-grid" id="gridAlpha"><span class="placeholder-text">Carregue o CSV primeiro</span></div>
+                                </div>
                             </div>
-                            <div>
+                            <div class="estrutura-card">
                                 <h4>Ordem dos Capítulos</h4>
-                                <label class="toggle-label">
+                                <label class="toggle-label" style="margin-bottom: 10px;">
                                     <div class="toggle-switch">
                                         <input type="checkbox" id="swSemantic" checked>
                                         <div class="toggle-slider"></div>
                                     </div>
-                                    Ordenação manual
+                                    Ordem padrão do projeto
                                 </label>
-                                <p id="instrucaoSemantic" style="display: none; font-size: 0.9em; color: #666; margin: 10px 0;">Segure e arraste para ordenar os campos semânticos.</p>                            
-                                <div class="sortable-list" id="gridSemantic"><span class="placeholder-text">Carregue o CSV primeiro</span></div>
+                                <div id="containerSemantic" style="display: none;">
+                                    <p style="font-size: 0.9em; color: #666; margin: 5px 0 10px 0;">Segure e arraste o ícone (☰) para personalizar a ordem dos campos semânticos:</p>                            
+                                    <div class="sortable-list" id="gridSemantic"><span class="placeholder-text">Carregue o CSV primeiro</span></div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -350,20 +290,10 @@
                         </div>
                           
                           <div class="export-grid">
-                            <button class="export-btn export-html" onclick="exportarHTML()"><span class="export-icon">🌐</span><span class="export-label">Gerar Site HTML</span></button>
-                            <button class="export-btn export-typst" onclick="exportarApenasTypst()"><span class="export-icon">📘</span><span class="export-label">Gerar Typst</span></button>
-                            <button class="export-btn export-pdf" onclick="exportarTypstCompleto()"><span class="export-icon">📑</span><span class="export-label">Gerar PDF</span></button>
-                            <button class="export-btn export-csv" onclick="exportarCSV()"><span class="export-icon">📊</span><span class="export-label">Baixar CSV Editado</span></button>
+                            <button class="export-btn export-html" onclick="gerarExportacao('html')"><span class="export-icon">🌐</span><span class="export-label">Gerar Site HTML</span></button>
+                            <button class="export-btn export-typst" onclick="gerarExportacao('typst')"><span class="export-icon">📘</span><span class="export-label">Gerar Typst</span></button>
+                            <button class="export-btn export-pdf" onclick="gerarExportacao('pdf')"><span class="export-icon">📑</span><span class="export-label">Gerar PDF</span></button>
                             <button class="export-btn export-json" onclick="exportarJSON()"><span class="export-icon">🗄️</span><span class="export-label">Banco JSON</span></button>
-                        </div>
-                        
-                        <!-- Progresso do Web Worker -->
-                        <div id="workerProgressContainer" style="display: none; margin-top: 20px; background: #eef2ff; border: 1px solid #c7d2fe; padding: 15px; border-radius: 8px;">
-                            <h4 style="margin-top: 0; margin-bottom: 10px; color: #4338ca;">⚙️ Web Worker Trabalhando...</h4>
-                            <div style="width: 100%; background: #e0e7ff; border-radius: 10px; height: 12px; overflow: hidden;">
-                                <div id="workerProgressBar" style="width: 0%; height: 100%; background: #4f46e5; transition: width 0.2s ease;"></div>
-                            </div>
-                            <p id="workerProgressText" style="margin-top: 8px; font-size: 0.85em; color: #4f46e5; text-align: center;">Convertendo mídias para Base64: 0/0</p>
                         </div>
                     </div>
                     
@@ -371,8 +301,8 @@
                 
                 <!-- Footer Actions -->
                 <div class="wizard-footer">
-                    <button id="btnPrev" class="btn btn-outline" disabled onclick="passoAnterior()">← Passo Anterior</button>
-                    <button id="btnNext" class="btn btn-primary" onclick="proximoPasso()">Próximo Passo →</button>
+                    <button id="btnPrev" class="btn btn-secondary" onclick="window.passoAnterior()" disabled>← Anterior</button>
+                    <button id="btnNext" class="btn btn-primary" onclick="window.proximoPasso()">Próximo Passo →</button>
                 </div>
             </div>
             
@@ -469,108 +399,39 @@
     </div>
 </dialog>
 
-<!-- Modal Editor e Outros -->
-<div class="modal-overlay-editor" id="modalEditorOverlay" style="display: none;" onclick="fecharModalEditor()">
-    <div class="modal-editor" onclick="event.stopPropagation()">
-        <div class="modal-editor-header">
-            <h3>📝 Editor de Entradas</h3>
-            <div style="display: flex; gap: 8px; align-items: center;">
-                <span id="editorCounter" style="font-size: 12px; color: var(--text-muted);">0 itens</span>
-                <button class="btn btn-sm btn-outline" onclick="verificarMidiasNoEditor()">🔍 Mídias</button>
-                <button class="btn btn-sm btn-outline" onclick="verificarCamposNoEditor()">⚠️ Campos</button>
-                <button class="btn btn-sm btn-filter" id="btnFiltrarErros" onclick="toggleFiltroErros()" style="background:#fef3c7; border-color:#f59e0b; color:#92400e; display: none;">⚠️ Filtrar erros (0)</button>
-                <button class="btn btn-sm btn-success" onclick="exportarCSV(); event.stopPropagation();">📥 CSV</button>
-                <button class="btn btn-sm btn-outline" onclick="fecharModalEditor()">✕ Fechar</button>
-            </div>
-        </div>
-        <div class="modal-editor-body">
-            <div class="editor-sidebar">
-                <input type="text" class="search-input" id="editorSearch" placeholder="🔍 Buscar palavra..." oninput="filtrarListaEditor()">
-                <div class="editor-list" id="editorListaItens"></div>
-            </div>
-            
-            <div class="editor-split-pane">
-                <div class="editor-form-pane editor-form" id="editorFormContainer">
-                    <div id="editorEmptyState" class="editor-empty-state">
-                        <h3>Selecione um item na lista</h3>
-                        <p>Clique em uma palavra para editar suas propriedades.</p>
-                    </div>
-                    <div id="editorFormContent" style="display: none;">
-                        <div class="tabs">
-                            <button class="tab-btn active" onclick="switchTabEditor(event, 'etab-dados')">Dados</button>
-                            <button class="tab-btn" onclick="switchTabEditor(event, 'etab-vars')">Variações</button>
-                            <button class="tab-btn" onclick="switchTabEditor(event, 'etab-exs')">Exemplos</button>
-                            <button class="tab-btn" onclick="switchTabEditor(event, 'etab-imgs')">Imagens</button>
-                            <button class="tab-btn" onclick="switchTabEditor(event, 'etab-video')">Vídeos</button>
-                        </div>
-                        <div id="etab-dados" class="tab-content active">
-                            <div class="grid-row">
-                                <div class="form-group"><label>Item Lexical *</label><input type="text" id="einp_ITEM_LEXICAL"></div>
-                                <div class="form-group"><label>Classe Gramatical</label><input type="text" id="einp_CLASSE_GRAMATICAL"></div>
-                            </div>
-                            <div class="grid-row">
-                                <div class="form-group"><label>Campo Semântico *</label><input type="text" id="einp_CAMPO_SEMANTICO"></div>
-                                <div class="form-group"><label>Sub-Campo Semântico</label><input type="text" id="einp_SUB_CAMPO_SEMANTICO"></div>
-                            </div>
-                            <div class="grid-row">
-                                <div class="form-group"><label>Tradução / Significado *</label><input type="text" id="einp_TRADUCAO_SIGNIFICADO"></div>
-                                <div class="form-group"><label>Itens Relacionados</label><input type="text" id="einp_ITENS_RELACIONADOS"></div>
-                            </div>
-                            <div class="form-group"><label>Descrição</label><textarea id="einp_DESCRICAO"></textarea></div>
-                        </div>
-                        <div id="etab-vars" class="tab-content">
-                            <div id="econtainer-vars"></div>
-                            <button class="btn btn-add" onclick="adicionarBlocoEditor('vars')">+ Variação Lexical</button>
-                        </div>
-                        <div id="etab-exs" class="tab-content">
-                            <div id="econtainer-exs"></div>
-                            <button class="btn btn-add" onclick="adicionarBlocoEditor('exs')">+ Exemplo</button>
-                        </div>
-                        <div id="etab-imgs" class="tab-content">
-                            <div id="econtainer-imgs"></div>
-                            <button class="btn btn-add" onclick="adicionarBlocoEditor('imgs')">+ Imagem</button>
-                        </div>
-                        <div id="etab-video" class="tab-content">
-                            <div class="form-group"><label>Arquivos de Vídeo (| para múltiplos)</label><input type="text" id="einp_ARQUIVO_VIDEO"></div>
-                        </div>
-                        <div style="margin-top: 20px; text-align: right;">
-                            <button class="btn btn-primary" onclick="salvarEdicaoAtual()">💾 Salvar Alterações</button>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="editor-preview-pane">
-                    <div class="preview-tabs">
-                        <button class="preview-tab active" onclick="switchPreviewTab(event, 'preview-html-card')">Card (HTML)</button>
-                        <button class="preview-tab" onclick="switchPreviewTab(event, 'preview-html-linear')">Linear (HTML)</button>
-                        <button class="preview-tab" onclick="switchPreviewTab(event, 'preview-pdf')">PDF (Typst)</button>
-                    </div>
-                    <div class="preview-content">
-                        <div id="preview-html-card" class="preview-panel active"></div>
-                        <div id="preview-html-linear" class="preview-panel" style="display: none;"></div>
-                        <div id="preview-pdf" class="preview-panel" style="display: none;">
-                            <iframe id="preview-pdf-frame" style="width: 100%; height: 100%; border: none;"></iframe>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-    </div>
-</div>
 <div class="modal-overlay" id="modalOverlay">
-    <div class="modal-box" id="modalBox" style="max-height: 80vh; overflow-y: auto;">
-        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 15px; margin-bottom: 15px;">
+    <div class="modal-box" id="modalBox" style="display: flex; flex-direction: column; max-height: 90vh; overflow: hidden;">
+        <div style="flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 15px; margin-bottom: 15px;">
             <h3 id="modalTitle" style="margin: 0; color: var(--primary);"></h3>
             <button onclick="document.getElementById('modalOverlay').style.display='none'" style="background:none; border:none; font-size: 20px; cursor:pointer;">✕</button>
         </div>
-        <div id="modalContent" style="font-family: 'Inter', sans-serif;"></div>
+        <div id="modalContent" style="font-family: 'Inter', sans-serif; flex-grow: 1; display: flex; flex-direction: column; overflow: hidden;"></div>
+    </div>
+</div>
+
+<div class="loader-overlay" id="globalLoader" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 999999;">
+    <div class="loader-box">
+        <div class="loader-spinner"></div>
+        <div class="loader-title" id="loaderTitle">Carregando...</div>
+        <div class="loader-text" id="loaderDesc" style="color: #64748b; font-size: 14px;">Aguarde um momento.</div>
     </div>
 </div>
 
 <!-- Logger do Terminal -->
 <script>
+    window.mostrarLoader = function(titulo = 'Processando...', descricao = 'Por favor, aguarde.') {
+        const loader = document.getElementById('globalLoader');
+        if (loader) {
+            document.getElementById('loaderTitle').textContent = titulo;
+            document.getElementById('loaderDesc').textContent = descricao;
+            loader.style.display = 'flex';
+        }
+    };
+    
+    window.ocultarLoader = function() {
+        const loader = document.getElementById('globalLoader');
+        if (loader) loader.style.display = 'none';
+    };
     function formatarMensagem(msg) {
         if (typeof msg === 'object') {
             try { return JSON.stringify(msg, null, 2); } catch(e) { return String(msg); }
@@ -601,32 +462,8 @@
         terminal.scrollTop = terminal.scrollHeight;
     }
 
-    const originalLog = console.log;
-    const originalWarn = console.warn;
-    const originalError = console.error;
-
-    console.log = function(...args) {
-        originalLog.apply(console, args);
-        adicionarLogAoTerminal(args.map(formatarMensagem).join(' '), 'info');
-    };
-    
-    console.warn = function(...args) {
-        originalWarn.apply(console, args);
-        adicionarLogAoTerminal(args.map(formatarMensagem).join(' '), 'warn');
-    };
-    
-    console.error = function(...args) {
-        originalError.apply(console, args);
-        adicionarLogAoTerminal(args.map(formatarMensagem).join(' '), 'error');
-    };
-
-    window.addEventListener('error', function(e) {
-        adicionarLogAoTerminal(`Erro não tratado: ${e.message} at ${e.filename}:${e.lineno}`, 'error');
-    });
-
-    window.addEventListener('unhandledrejection', function(e) {
-        adicionarLogAoTerminal(`Promise rejeitada: ${e.reason}`, 'error');
-    });
+    // Expor função globalmente para uso manual em etapas específicas
+    window.adicionarLogAoTerminal = adicionarLogAoTerminal;
 
     window.limparTerminal = function() {
         const terminal = document.getElementById('terminal');
@@ -658,7 +495,7 @@
     import ModuloExportacao from './src/modulos/moduloExportacao.js';
     import ValidadorDados from './src/modulos/validadorDados.js';
     import Configurador from './src/utils/configurador.js';
-    import ModuloEditor from './src/modulos/moduloEditor.js';
+
     
     // 1. Criar instâncias do sistema modular
     window.configurador = new Configurador();
@@ -666,7 +503,6 @@
     window.sistema = new GerenciadorDados(window.configurador);
     window.carregadorPasta = null;
     window.exportador = null;
-    window.editor = null;
     window.validador = new ValidadorDados(window.sistema);
     
     // 2. Funções Globais de Compatibilidade para a Interface do Assistente
@@ -732,46 +568,38 @@
         document.getElementById('modalOverlay').style.display = 'flex';
     };
     
-    window.testarBusca = function() {
-        const termo = document.getElementById('inputTesteBusca').value;
-        const resContainer = document.getElementById('resultadoBuscaTeste');
-        if (!termo) {
-            resContainer.innerHTML = '<span style="color:#ef4444;">Digite um termo para buscar.</span>';
-            return;
-        }
+
+
+
+    window.preencherUIComMetadados = function() {
+        const sis = window.sistema;
+        if (!sis) return;
         
-        const resultados = window.sistema.buscarPorTermo(termo, { fuzzy: true, global: true });
-        if (resultados.length === 0) {
-            resContainer.innerHTML = '<span style="color:#64748b;">Nenhum resultado encontrado.</span>';
-        } else {
-            let html = `<strong>${resultados.length} resultados encontrados:</strong><ul style="margin-top: 5px; padding-left: 20px;">`;
-            resultados.slice(0, 5).forEach(item => {
-                html += `<li><b>${item._TERMO_PRINCIPAL || '???'}</b> (Classe: ${item.CLASSE_GRAMATICAL || '?'})</li>`;
-            });
-            if (resultados.length > 5) html += `<li>... e mais ${resultados.length - 5} itens</li>`;
-            html += `</ul>`;
-            resContainer.innerHTML = html;
+        const config = sis.configurador ? sis.configurador.getConfig() : {};
+        const meta = (config && config.metadados) || {};
+        
+        if (meta.html) document.getElementById('metaHtml').value = meta.html;
+        if (meta.pdf) document.getElementById('metaPdf').value = meta.pdf;
+        if (meta.autor) document.getElementById('metaAutor').value = meta.autor;
+        if (meta.ano) document.getElementById('metaAno').value = meta.ano;
+        
+        if (sis.introHtml) {
+            document.getElementById('introMarkdown').value = sis.introHtml;
+        } else if (sis.introPdf) {
+            document.getElementById('introMarkdown').value = sis.introPdf;
         }
     };
-
-    window.previewIntroducao = () => alert("Preview em migração.");
-    window.exportarCSV = () => alert("Exportação de CSV em migração.");
     window.exportarJSON = () => alert("Exportação de JSON em migração.");
     
     // Ouvinte do Web Worker (Passo 3)
     window.addEventListener('exportacaoProgresso', (e) => {
         const { progresso, total } = e.detail;
-        const container = document.getElementById('workerProgressContainer');
-        const bar = document.getElementById('workerProgressBar');
-        const text = document.getElementById('workerProgressText');
+        const loaderDesc = document.getElementById('loaderDesc');
+        const loader = document.getElementById('globalLoader');
         
-        container.style.display = 'block';
         const percent = Math.round((progresso / total) * 100);
-        bar.style.width = percent + '%';
-        text.textContent = `Convertendo mídias para Base64: ${progresso}/${total} (${percent}%)`;
-        
-        if (progresso >= total) {
-            setTimeout(() => { container.style.display = 'none'; bar.style.width = '0%'; }, 1500);
+        if (loader && loader.style.display !== 'none' && loaderDesc) {
+            loaderDesc.textContent = `Processando mídias (Base64): ${progresso}/${total} (${percent}%)`;
         }
     });
     
@@ -805,32 +633,203 @@
         }
     });
     
-    window.exportarHTML = async function() {
+    window.gerarExportacao = async function(tipo) {
         if (!window.exportador) return alert('Exportador não inicializado!');
-        const swMidia = document.getElementById('swMidia');
-        const embutir = swMidia ? swMidia.checked : false;
         
-        // Pega do novo select do Passo 5, com fallback pro antigo do modal
-        const selectWizard = document.getElementById('templateExportacaoSelect');
-        const selectCustom = document.getElementById('templateEntradaSelect');
-        const formato = selectWizard ? selectWizard.value : (selectCustom ? selectCustom.value : 'card');
+        let modalTitle = '';
+        let previewContentHtml = '';
+        let conteudoParaBaixar = null;
+        let nomeArquivo = '';
+        let mimeType = 'text/plain;charset=utf-8';
         
-        if (formato === 'linear') {
-            await window.exportador.exportarHtmlLinear({ embutirMidias: embutir });
-        } else {
-            await window.exportador.exportarHtmlCards({ embutirMidias: embutir });
+        if (tipo === 'html') {
+            const swMidia = document.getElementById('swMidia');
+            const embutir = swMidia ? swMidia.checked : false;
+            const selectWizard = document.getElementById('templateExportacaoSelect');
+            const selectCustom = document.getElementById('templateEntradaSelect');
+            const formato = selectWizard ? selectWizard.value : (selectCustom ? selectCustom.value : 'card');
+            
+            window.mostrarLoader('Gerando HTML', 'Construindo páginas e processando mídias...');
+            try {
+                let htmlGerado;
+                if (formato === 'linear') {
+                    htmlGerado = await window.exportador.exportarHtmlLinear({ embutirMidias: embutir });
+                    nomeArquivo = embutir ? 'dicionario-linear-embutido.html' : 'dicionario-linear.zip';
+                } else {
+                    htmlGerado = await window.exportador.exportarHtmlCards({ embutirMidias: embutir });
+                    nomeArquivo = embutir ? 'dicionario-cards-embutido.html' : 'dicionario-cards.zip';
+                }
+                
+                let htmlPreview = htmlGerado;
+                
+                if (!embutir) {
+                    if (typeof JSZip === 'undefined') throw new Error("Biblioteca JSZip não encontrada!");
+                    const zip = new JSZip();
+                    zip.file(formato === 'linear' ? 'dicionario-linear.html' : 'dicionario-cards.html', htmlGerado);
+                    
+                    const tiposM = ['audio', 'imagem', 'video'];
+                    for (const tipoM of tiposM) {
+                        const arquivos = window.sistema.vfs.obterTodosArquivos(tipoM);
+                        const nomes = window.sistema.vfs.obterTodosNomes(tipoM);
+                        const dirName = tipoM === 'imagem' ? 'foto' : tipoM;
+                        for (let i = 0; i < arquivos.length; i++) {
+                            zip.file(`${dirName}/${nomes[i]}`, arquivos[i]);
+                        }
+                    }
+                    conteudoParaBaixar = await zip.generateAsync({ type: 'blob' });
+                    mimeType = 'application/zip';
+                    
+                    // Remove o atributo loading="lazy" do HTML como string ANTES de ir pro DOM, para evitar a intervenção do Chrome
+                    let htmlSemLazy = htmlGerado.replace(/\sloading=["']?lazy["']?/gi, '');
+                    
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(htmlSemLazy, 'text/html');
+                    
+                    doc.querySelectorAll('img, audio, source, video').forEach(el => {
+                        const src = el.getAttribute('src');
+                        if (src && !src.startsWith('data:') && !src.startsWith('blob:') && !src.startsWith('http')) {
+                            try {
+                                const nomeRaw = src.split('/').pop();
+                                const nomeLimpo = decodeURIComponent(nomeRaw);
+                                let tipoF = 'imagem';
+                                if (el.tagName === 'AUDIO' || el.tagName === 'SOURCE') tipoF = 'audio';
+                                if (el.tagName === 'VIDEO') tipoF = 'video';
+                                
+                                const keys = Array.from(window.sistema.vfs[tipoF].keys());
+                                const match = keys.find(k => k.toLowerCase() === nomeLimpo.toLowerCase() || k.toLowerCase() === nomeRaw.toLowerCase());
+                                if (match) {
+                                    el.src = window.sistema.vfs.obterUrl(tipoF, match);
+                                } else {
+                                    console.warn('Mídia não encontrada no VFS para preview:', nomeRaw);
+                                }
+                            } catch (e) { console.error('Erro resolver mídia preview', e); }
+                        }
+                    });
+                    
+                    // 3. Script para injetar os blob URLs nos dados do script JS (caso existam)
+                    const tiposMidia = ['audio', 'imagem', 'video'];
+                    let blobMap = {};
+                    for (const tipoMidia of tiposMidia) {
+                        for (const key of window.sistema.vfs.obterTodosNomes(tipoMidia)) {
+                            const arquivo = window.sistema.vfs.obterArquivo(tipoMidia, key);
+                            blobMap[key.toLowerCase()] = URL.createObjectURL(arquivo);
+                        }
+                    }
+                    
+                    const injecaoScript = doc.createElement('script');
+                    injecaoScript.textContent = `
+                        (function() {
+                            const bMap = ${JSON.stringify(blobMap)};
+                            if (window.dadosDicionarioLexical) {
+                                const processObj = (obj) => {
+                                    if (Array.isArray(obj)) {
+                                        obj.forEach(processObj);
+                                    } else if (obj && typeof obj === 'object') {
+                                        for (let k in obj) {
+                                            if ((k === 'ARQUIVO' || k === 'AUDIO') && typeof obj[k] === 'string') {
+                                                let parts = obj[k].split('~').map(p => p.trim());
+                                                parts = parts.map(p => {
+                                                    let raw = p.split('/').pop().toLowerCase();
+                                                    return bMap[raw] ? bMap[raw] : p;
+                                                });
+                                                obj[k] = parts.join(' ~ ');
+                                            } else {
+                                                processObj(obj[k]);
+                                            }
+                                        }
+                                    }
+                                };
+                                processObj(window.dadosDicionarioLexical);
+                            }
+                        })();
+                    `;
+                    doc.body.appendChild(injecaoScript);
+                    
+                    htmlPreview = '<!DOCTYPE html>\n' + doc.documentElement.outerHTML;
+                    modalTitle = 'Pré-visualização do Site HTML';
+                    const previewBlob = new Blob([htmlPreview], { type: 'text/html;charset=utf-8' });
+                    const previewUrl = URL.createObjectURL(previewBlob);
+                    previewContentHtml = `<iframe style="width: 100%; height: 100%; border: none; background: white;" src="${previewUrl}"></iframe>`;
+                } else {
+                    conteudoParaBaixar = htmlGerado;
+                    mimeType = 'text/html;charset=utf-8';
+                    modalTitle = 'Pré-visualização do Site HTML';
+                    const previewBlob = new Blob([htmlPreview], { type: 'text/html;charset=utf-8' });
+                    const previewUrl = URL.createObjectURL(previewBlob);
+                    previewContentHtml = `<iframe style="width: 100%; height: 100%; border: none; background: white;" src="${previewUrl}"></iframe>`;
+                }
+            } catch (e) {
+                console.error(e);
+                alert('Erro ao gerar HTML: ' + e.message);
+                return;
+            } finally {
+                window.ocultarLoader();
+            }
+        } else if (tipo === 'typst') {
+            window.mostrarLoader('Gerando Typst', 'Escrevendo código fonte...');
+            try {
+                conteudoParaBaixar = await window.exportador.exportarTypst();
+                nomeArquivo = 'dicionario.typ';
+                modalTitle = 'Código Typst Gerado';
+                previewContentHtml = `<textarea style="width: 100%; height: 100%; padding: 15px; font-family: monospace; border: none; background: var(--bg-secondary); color: var(--text-color); resize: none;" readonly>${conteudoParaBaixar}</textarea>`;
+            } catch (e) {
+                console.error(e);
+                alert('Erro ao gerar Typst: ' + e.message);
+                return;
+            } finally {
+                window.ocultarLoader();
+            }
+        } else if (tipo === 'pdf') {
+            window.mostrarLoader('Gerando PDF', 'Compilando via WebAssembly (isso pode demorar um pouco)...');
+            try {
+                const pdfBlob = await window.exportador.gerarPdfBlob({});
+                conteudoParaBaixar = pdfBlob;
+                nomeArquivo = 'dicionario.pdf';
+                modalTitle = 'PDF Gerado';
+                const pdfUrl = URL.createObjectURL(pdfBlob);
+                previewContentHtml = `<object data="${pdfUrl}#toolbar=0&view=FitH" type="application/pdf" style="width: 100%; height: 100%; border: none;"></object>`;
+            } catch (e) {
+                console.error(e);
+                alert('Erro ao compilar PDF: ' + e.message);
+                return;
+            } finally {
+                window.ocultarLoader();
+            }
+        }
+        
+        if (conteudoParaBaixar) {
+            window.arquivoParaBaixarAtual = { conteudo: conteudoParaBaixar, nomeArquivo, mimeType };
+            
+            document.getElementById('modalBox').style.width = '95vw';
+            document.getElementById('modalBox').style.maxWidth = '1400px';
+            document.getElementById('modalBox').style.height = '90vh';
+            
+            document.getElementById('modalTitle').textContent = modalTitle;
+            const modalContent = document.getElementById('modalContent');
+            
+            modalContent.innerHTML = `
+                <div style="flex-grow: 1; overflow: hidden; position: relative; border-radius: 8px; border: 1px solid var(--border-color);">
+                    ${previewContentHtml}
+                </div>
+                <div style="flex-shrink: 0; margin-top: 15px; display: flex; justify-content: flex-end; gap: 10px;">
+                    <button class="btn btn-outline" onclick="document.getElementById('modalOverlay').style.display='none'">Cancelar</button>
+                    <button class="btn btn-primary" onclick="window.baixarArquivoGerado()"><span style="margin-right: 8px;">📥</span> Baixar ${nomeArquivo}</button>
+                </div>
+            `;
+            document.getElementById('modalOverlay').style.display = 'flex';
         }
     };
-    
-    window.exportarApenasTypst = async function() {
-        if (!window.exportador) return alert('Exportador não inicializado!');
-        const typst = await window.exportador.exportarTypst();
-        window.exportador.salvarArquivo(typst, 'dicionario.typ', 'text/plain;charset=utf-8');
-    };
-    
-    window.exportarTypstCompleto = async function() {
-        if (!window.exportador) return alert('Exportador não inicializado!');
-        await window.exportador.exportarPdf({}, 'dicionario.pdf');
+
+    window.baixarArquivoGerado = function() {
+        if (!window.arquivoParaBaixarAtual || !window.exportador) return;
+        const { conteudo, nomeArquivo, mimeType } = window.arquivoParaBaixarAtual;
+        
+        if (conteudo instanceof Blob) {
+            window.exportador.salvarArquivoBlob(conteudo, nomeArquivo);
+        } else {
+            window.exportador.salvarArquivo(conteudo, nomeArquivo, mimeType);
+        }
+        document.getElementById('modalOverlay').style.display = 'none';
     };
     
     // 3. Inicialização do novo núcleo
@@ -838,11 +837,6 @@
         await window.sistema.inicializar();
         window.carregadorPasta = new CarregadorPasta(window.sistema.configurador, window.sistema.vfs, window.sistema);
         window.exportador = new ModuloExportacao(window.sistema);
-        window.editor = new ModuloEditor(window.sistema);
-        
-        // Ligações do Editor UI
-        window.sistema.abrirEditorParaItem = (indice) => window.editor.obterItemParaEdicao(indice);
-        window.sistema.salvarItemEditado = (indice, dados) => window.editor.salvarEdicao(indice, dados);
         window.sistema.obterTodosDadosBrutos = () => {
             return (window.sistema.dadosPlanilha || []).map((linha, idx) => {
                 const varItem = linha.variacoes?.[0]?.item;
@@ -955,9 +949,15 @@
         if (filePastaProj) {
             filePastaProj.addEventListener('change', async e => {
                 if (e.target.files.length > 0) {
-                    const statusEl = document.getElementById('statusCsv');
-                    if(statusEl) statusEl.textContent = 'Processando pasta...';
-                    await window.carregadorPasta.carregarPasta(e.target.files);
+                    window.mostrarLoader('Processando Projeto', 'Lendo a estrutura da pasta e arquivos...');
+                    try {
+                        const statusEl = document.getElementById('statusCsv');
+                        if(statusEl) statusEl.textContent = 'Processando pasta...';
+                        await window.carregadorPasta.carregarPasta(e.target.files);
+                        if(window.preencherUIComMetadados) window.preencherUIComMetadados();
+                    } finally {
+                        window.ocultarLoader();
+                    }
                 }
             });
         }
@@ -966,9 +966,14 @@
         if (fileCsvIn) {
             fileCsvIn.addEventListener('change', async e => {
                 if (e.target.files.length > 0) {
-                    const statusEl = document.getElementById('statusCsv');
-                    if(statusEl) statusEl.textContent = 'Processando CSV...';
-                    await window.sistema.carregarPlanilha(e.target.files[0]);
+                    window.mostrarLoader('Processando CSV', 'Lendo entradas do dicionário...');
+                    try {
+                        const statusEl = document.getElementById('statusCsv');
+                        if(statusEl) statusEl.textContent = 'Processando CSV...';
+                        await window.sistema.carregarPlanilha(e.target.files[0]);
+                    } finally {
+                        window.ocultarLoader();
+                    }
                 }
             });
         }
@@ -1007,25 +1012,139 @@
         });
         // -----------------------------------------
 
+        // Função auxiliar para DropZones
+        function setupDropZone(zoneEl, callback) {
+            if (!zoneEl) return;
+            zoneEl.addEventListener('dragover', e => { 
+                e.preventDefault(); 
+                zoneEl.classList.add('dragover');
+                zoneEl.style.borderColor = 'var(--primary)';
+            });
+            zoneEl.addEventListener('dragleave', e => { 
+                e.preventDefault(); 
+                zoneEl.classList.remove('dragover');
+                zoneEl.style.borderColor = '';
+            });
+            zoneEl.addEventListener('drop', async e => {
+                e.preventDefault();
+                zoneEl.classList.remove('dragover');
+                zoneEl.style.borderColor = '';
+                
+                if (!e.dataTransfer) return;
+
+                if (e.dataTransfer.items) {
+                    let todosArquivos = [];
+                    let promessas = [];
+                    
+                    const lerEntrada = (entrada, caminhoRelativo = '') => {
+                        return new Promise((resolve) => {
+                            if (entrada.isFile) {
+                                entrada.file(file => {
+                                    if (caminhoRelativo) {
+                                        try {
+                                            Object.defineProperty(file, 'webkitRelativePath', {
+                                                value: caminhoRelativo + file.name,
+                                                writable: false
+                                            });
+                                        } catch (err) {
+                                            file.caminhoPersonalizado = caminhoRelativo + file.name;
+                                        }
+                                    }
+                                    resolve([file]);
+                                });
+                            } else if (entrada.isDirectory) {
+                                const leitorDir = entrada.createReader();
+                                const entradasLidas = [];
+                                
+                                const lerDir = () => {
+                                    leitorDir.readEntries(async (resultados) => {
+                                        if (resultados.length === 0) {
+                                            let arquivosDir = [];
+                                            for (let ext of entradasLidas) {
+                                                const subArquivos = await lerEntrada(ext, caminhoRelativo + entrada.name + '/');
+                                                arquivosDir = arquivosDir.concat(subArquivos);
+                                            }
+                                            resolve(arquivosDir);
+                                        } else {
+                                            entradasLidas.push(...resultados);
+                                            lerDir(); // Continua lendo até acabar (limite do Chrome)
+                                        }
+                                    });
+                                };
+                                lerDir();
+                            } else {
+                                resolve([]);
+                            }
+                        });
+                    };
+
+                    for (let i = 0; i < e.dataTransfer.items.length; i++) {
+                        const item = e.dataTransfer.items[i];
+                        if (item.kind === 'file') {
+                            const entrada = item.webkitGetAsEntry ? item.webkitGetAsEntry() : (item.getAsEntry ? item.getAsEntry() : null);
+                            if (entrada) {
+                                promessas.push(lerEntrada(entrada));
+                            } else {
+                                promessas.push(Promise.resolve([item.getAsFile()]));
+                            }
+                        }
+                    }
+                    
+                    const resultados = await Promise.all(promessas);
+                    for (const result of resultados) {
+                        todosArquivos = todosArquivos.concat(result);
+                    }
+                    
+                    if (todosArquivos.length > 0) {
+                        callback(todosArquivos);
+                    } else if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                        callback(e.dataTransfer.files);
+                    }
+                } else if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                    callback(e.dataTransfer.files);
+                }
+            });
+        }
+
         // Engatilha os inputs escondidos nas DropZones
         const csvDrop = document.getElementById('csvDropZone');
         if (csvDrop && fileCsvIn) {
             csvDrop.addEventListener('click', () => { fileCsvIn.value = null; fileCsvIn.click(); });
             fileCsvIn.addEventListener('click', e => e.stopPropagation());
-        }
-
-        const zipDrop = document.getElementById('zipProjetoDropZone');
-        const fileZip = document.getElementById('fileZipProjeto');
-        if (zipDrop && fileZip) {
-            zipDrop.addEventListener('click', () => { fileZip.value = null; fileZip.click(); });
-            fileZip.addEventListener('click', e => e.stopPropagation());
+            setupDropZone(csvDrop, files => {
+                fileCsvIn.files = files;
+                fileCsvIn.dispatchEvent(new Event('change', { bubbles: true }));
+            });
         }
 
         const pastaDrop = document.getElementById('pastaProjetoDropZone');
         if (pastaDrop && filePastaProj) {
             pastaDrop.addEventListener('click', () => { filePastaProj.value = null; filePastaProj.click(); });
             filePastaProj.addEventListener('click', e => e.stopPropagation());
+            setupDropZone(pastaDrop, async files => {
+                // Emula o processo da pasta
+                window.mostrarLoader('Processando Projeto', 'Lendo a estrutura da pasta e arquivos...');
+                try {
+                    const statusEl = document.getElementById('statusCsv');
+                    if(statusEl) statusEl.textContent = 'Processando pasta...';
+                    await window.carregadorPasta.carregarPasta(files);
+                    if(window.preencherUIComMetadados) window.preencherUIComMetadados();
+                } finally {
+                    window.ocultarLoader();
+                }
+            });
         }
+
+        // Configura áreas de mídia para aceitarem drop
+        setupDropZone(document.getElementById('panelAudio'), files => {
+            window.sistema.carregarPastaVirtual('audio', Array.from(files)).catch(err => alert(`Erro: ${err.message}`));
+        });
+        setupDropZone(document.getElementById('panelImagem'), files => {
+            window.sistema.carregarPastaVirtual('imagem', Array.from(files)).catch(err => alert(`Erro: ${err.message}`));
+        });
+        setupDropZone(document.getElementById('panelVideo'), files => {
+            window.sistema.carregarPastaVirtual('video', Array.from(files)).catch(err => alert(`Erro: ${err.message}`));
+        });
         
         // Atualizador de interface do Wizard (Polling)
         setInterval(() => {
@@ -1034,12 +1153,17 @@
             
             if (stats.disponivel) {
                 document.getElementById('statusCsv').textContent = `${stats.entradas || 0} entradas`;
-                document.getElementById('csvLinhas').textContent = `${stats.entradas || 0} entradas`;
+                document.getElementById('csvLinhas').textContent = `${stats.entradas || 0} linhas`;
+                document.getElementById('csvColunas').textContent = `${stats.colunas || 0} colunas`;
+                document.getElementById('csvCategorias').textContent = `${stats.categorias || 0} categorias`;
                 document.getElementById('badgeCsv').textContent = '✅ Carregado';
                 document.getElementById('badgeCsv').className = 'step-badge active badge-ok';
+                if (typeof popularEstrutura === 'function') popularEstrutura();
             } else {
                 document.getElementById('statusCsv').textContent = 'Pendente';
                 document.getElementById('csvLinhas').textContent = '0 linhas';
+                document.getElementById('csvColunas').textContent = '0 colunas';
+                document.getElementById('csvCategorias').textContent = '0 categorias';
                 document.getElementById('badgeCsv').textContent = 'Pendente';
                 document.getElementById('badgeCsv').className = 'step-badge';
             }
@@ -1074,10 +1198,10 @@
     // ===================================
     // LÓGICA DO ASSISTENTE
     // ===================================
-    let passoAtual = 1;
+    window.passoAtual = 1;
     const totalPassos = 5;
 
-    function irParaPasso(passo) {
+    window.irParaPasso = function(passo) {
         // Esconde todos
         document.querySelectorAll('.wizard-step').forEach(el => el.classList.remove('active'));
         document.querySelectorAll('.step-indicator').forEach(el => el.classList.remove('active'));
@@ -1097,15 +1221,15 @@
             btnNext.textContent = 'Próximo Passo →';
         }
         
-        passoAtual = passo;
+        window.passoAtual = passo;
     }
 
-    function proximoPasso() {
-        if(passoAtual < totalPassos) irParaPasso(passoAtual + 1);
+    window.proximoPasso = function() {
+        if(window.passoAtual < totalPassos) window.irParaPasso(window.passoAtual + 1);
     }
 
-    function passoAnterior() {
-        if(passoAtual > 1) irParaPasso(passoAtual - 1);
+    window.passoAnterior = function() {
+        if(window.passoAtual > 1) window.irParaPasso(window.passoAtual - 1);
     }
     
     // Intercepta alterações nas tabs do modal antigo
@@ -1122,25 +1246,143 @@
         zoomAtual = Math.max(0.6, Math.min(2, zoomAtual + delta));
         document.documentElement.style.setProperty('--zoom', zoomAtual);
         document.getElementById('zoomLevel').textContent = Math.round(zoomAtual * 100) + '%';
-        localStorage.setItem('csv2dmli-zoom', zoomAtual);
+        try { localStorage.setItem('csv2dmli-zoom', zoomAtual); } catch(e) {}
     }
     function resetZoom() {
         zoomAtual = 1;
         document.documentElement.style.setProperty('--zoom', 1);
         document.getElementById('zoomLevel').textContent = '100%';
-        localStorage.setItem('csv2dmli-zoom', 1);
+        try { localStorage.setItem('csv2dmli-zoom', 1); } catch(e) {}
     }
     (function() {
-        const zoomSalvo = localStorage.getItem('csv2dmli-zoom');
-        if (zoomSalvo) {
-            zoomAtual = parseFloat(zoomSalvo);
-            document.documentElement.style.setProperty('--zoom', zoomAtual);
-            document.getElementById('zoomLevel').textContent = Math.round(zoomAtual * 100) + '%';
+        try {
+            const zoomSalvo = localStorage.getItem('csv2dmli-zoom');
+            if (zoomSalvo) {
+                zoomAtual = parseFloat(zoomSalvo);
+                document.documentElement.style.setProperty('--zoom', zoomAtual);
+                document.getElementById('zoomLevel').textContent = Math.round(zoomAtual * 100) + '%';
+            }
+        } catch(e) {
+            console.warn('localStorage bloqueado:', e);
         }
         // Inicia no passo 1
-        irParaPasso(1);
+        window.irParaPasso(1);
+
+        // Listeners para os toggles de estrutura
+        const swAlpha = document.getElementById('swAlpha');
+        const containerAlpha = document.getElementById('containerAlpha');
+        const swSemantic = document.getElementById('swSemantic');
+        const containerSemantic = document.getElementById('containerSemantic');
+        const chkSelectAllAlpha = document.getElementById('chkSelectAllAlpha');
+        
+        function atualizarVisibilidadeAlpha() {
+            if (swAlpha && swAlpha.checked) {
+                if (containerAlpha) containerAlpha.style.display = 'none';
+            } else {
+                if (containerAlpha) containerAlpha.style.display = 'block';
+            }
+        }
+
+        function atualizarVisibilidadeSemantic() {
+            if (swSemantic && swSemantic.checked) {
+                if (containerSemantic) containerSemantic.style.display = 'none';
+            } else {
+                if (containerSemantic) containerSemantic.style.display = 'block';
+            }
+        }
+
+        if (chkSelectAllAlpha) {
+            chkSelectAllAlpha.addEventListener('change', function() {
+                document.querySelectorAll('.cat-checkbox').forEach(chk => {
+                    chk.checked = chkSelectAllAlpha.checked;
+                });
+            });
+        }
+
+        if (swAlpha) swAlpha.addEventListener('change', atualizarVisibilidadeAlpha);
+        if (swSemantic) swSemantic.addEventListener('change', atualizarVisibilidadeSemantic);
+        
+        atualizarVisibilidadeAlpha();
+        atualizarVisibilidadeSemantic();
     })();
+
+    let categoriasEstrutura = [];
+    function popularEstrutura() {
+        if (!window.sistema) return;
+        const arv = window.sistema.obterArvoreOrdenada();
+        if (!arv || !arv.categoriasRaizes || arv.categoriasRaizes.length === 0) return;
+        
+        const novasCats = arv.categoriasRaizes;
+        if (JSON.stringify(categoriasEstrutura) === JSON.stringify(novasCats)) return;
+        categoriasEstrutura = novasCats;
+        
+        const gridAlpha = document.getElementById('gridAlpha');
+        if (gridAlpha) {
+            gridAlpha.innerHTML = '';
+            categoriasEstrutura.forEach(cat => { 
+                gridAlpha.innerHTML += `<label class="checkbox-tag"><input type="checkbox" class="cat-checkbox" value="${cat}" checked>${cat}</label>`; 
+            });
+        }
+
+        const gridSemantic = document.getElementById('gridSemantic');
+        if (gridSemantic) {
+            gridSemantic.innerHTML = '';
+            categoriasEstrutura.forEach((cat, i) => {
+                const item = document.createElement('div');
+                item.className = 'sortable-item';
+                item.draggable = true;
+                item.dataset.category = cat;
+                item.innerHTML = `<span class="handle" style="cursor: grab;">☰</span><span>${cat}</span><span style="margin-left:auto;font-size:11px;color:var(--text-muted);">#${i + 1}</span>`;
+                
+                item.addEventListener('dragstart', e => {
+                    item.classList.add('dragging');
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', cat); // Necessário para o drag do WebView2 funcionar
+                });
+                
+                item.addEventListener('dragend', () => {
+                    item.classList.remove('dragging');
+                    atualizarIndices();
+                });
+
+                gridSemantic.appendChild(item);
+            });
+
+            if (!gridSemantic.dataset.dragAtivo) {
+                gridSemantic.addEventListener('dragover', e => {
+                    e.preventDefault();
+                    const dragging = gridSemantic.querySelector('.dragging');
+                    if (!dragging) return;
+                    const after = getDragAfterElement(gridSemantic, e.clientY);
+                    if (after) {
+                        gridSemantic.insertBefore(dragging, after);
+                    } else {
+                        gridSemantic.appendChild(dragging);
+                    }
+                });
+                gridSemantic.dataset.dragAtivo = 'true';
+            }
+        }
+    }
+
+    function atualizarIndices() {
+        const grid = document.getElementById('gridSemantic');
+        if (!grid) return;
+        const items = grid.querySelectorAll('.sortable-item');
+        items.forEach((item, index) => {
+            const num = item.querySelector('span:last-child');
+            if (num) num.textContent = `#${index + 1}`;
+        });
+    }
+
+    function getDragAfterElement(container, y) {
+        const items = [...container.querySelectorAll('.sortable-item:not(.dragging)')];
+        return items.reduce((closest, child) => { 
+            const box = child.getBoundingClientRect(); 
+            const offset = y - box.top - box.height / 2; 
+            return (offset < 0 && offset > closest.offset) ? { offset, element: child } : closest; 
+        }, { offset: Number.NEGATIVE_INFINITY }).element;
+    }
 </script>
-<script src="src/editor-ui.js"></script>
 </body>
 </html>

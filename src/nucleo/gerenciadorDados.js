@@ -29,6 +29,9 @@ export default class GerenciadorDados {
         this.referencia = '';
         this.alfabetoCustomizado = '';
         this.configuracaoTextoLocal = {};
+        
+        // Opções
+        this.silenciarAvisosMidia = false;
 
         console.log('🗃️ Gerenciador de Dados inicializado (Arquitetura Modular).');
     }
@@ -237,9 +240,20 @@ export default class GerenciadorDados {
         this._reconstruirBanco();
     }
 
+    setIntroHtml(conteudo) { this.introHtml = conteudo; }
+    setIntroPdf(conteudo) { this.introPdf = conteudo; }
+    setReferencia(conteudo) { this.referencia = conteudo; }
+    setAlfabetoCustomizado(conteudo) { this.alfabetoCustomizado = conteudo; }
+    setConfiguracaoTextoLocal(config) { this.configuracaoTextoLocal = config; }
+    setMetadados(metadados) { 
+        if(this.configurador && this.configurador.mesclarConfigLocal) {
+            this.configurador.mesclarConfigLocal({ metadados });
+        }
+    }
+
     _reconstruirBanco() {
         if (this.dadosPlanilha && this.dadosPlanilha.length > 0) {
-            this._bancoConstruido = this.construtorDB.normalizarDados(this.dadosPlanilha);
+            this._bancoConstruido = this.construtorDB.normalizarDados(this.dadosPlanilha, this.silenciarAvisosMidia);
         }
     }
 
@@ -251,6 +265,10 @@ export default class GerenciadorDados {
     }
 
     limpar() {
+        // Opções
+        this.silenciarAvisosMidia = false;
+        
+        // Estado
         this.dadosPlanilha = [];
         this.colunasPlanilha = [];
         this._bancoConstruido = null;
@@ -310,11 +328,20 @@ export default class GerenciadorDados {
 
     obterEstatisticas() {
         const b = this._bancoConstruido;
+        const categoriasSet = new Set();
+        if (b) {
+            Object.values(b.entradas).forEach(e => {
+                if (e.CAMPO_SEMANTICO) categoriasSet.add(e.CAMPO_SEMANTICO);
+            });
+        }
+        
         return {
             disponivel: this.dadosPlanilha.length > 0,
             entradas: b ? Object.keys(b.entradas).length : 0,
             variacoes: b ? Object.keys(b.variacoes).length : 0,
             significados: b ? Object.keys(b.significados).length : 0,
+            colunas: this.colunasPlanilha ? this.colunasPlanilha.length : 0,
+            categorias: categoriasSet.size,
             midias: {
                 audio: this.vfs.obterContagem('audio'),
                 imagem: this.vfs.obterContagem('imagem'),
@@ -336,7 +363,42 @@ export default class GerenciadorDados {
             arvore[cat]._entradas.push(entrada);
         });
         
-        return { arvore, categoriasRaizes: Array.from(categoriasRaizes).sort() };
+        let ordemCategorias = Array.from(categoriasRaizes).sort();
+        let categoriasAlfabetico = new Set(ordemCategorias);
+        
+        if (typeof document !== 'undefined') {
+            const swSemantic = document.getElementById('swSemantic');
+            if (swSemantic && !swSemantic.checked) {
+                const gridSemantic = document.getElementById('gridSemantic');
+                if (gridSemantic) {
+                    const ordemDom = [...gridSemantic.querySelectorAll('.sortable-item')].map(item => item.dataset.category);
+                    if (ordemDom.length > 0) {
+                        ordemCategorias = ordemDom.filter(cat => categoriasRaizes.has(cat));
+                        Array.from(categoriasRaizes).forEach(cat => {
+                            if (!ordemCategorias.includes(cat)) ordemCategorias.push(cat);
+                        });
+                    }
+                }
+            }
+            
+            const swAlpha = document.getElementById('swAlpha');
+            if (swAlpha && !swAlpha.checked) {
+                const cbAtivos = [...document.querySelectorAll('#gridAlpha .cat-checkbox:checked')].map(cb => cb.value.trim());
+                categoriasAlfabetico = new Set(cbAtivos);
+            }
+        }
+        
+        Object.keys(arvore).forEach(cat => {
+            if (categoriasAlfabetico.has(cat)) {
+                arvore[cat]._entradas.sort((a, b) => {
+                    const termoA = (a._TERMO_PRINCIPAL || a.TERMO_PARENT || '').toLowerCase();
+                    const termoB = (b._TERMO_PRINCIPAL || b.TERMO_PARENT || '').toLowerCase();
+                    return termoA.localeCompare(termoB, 'pt-BR');
+                });
+            }
+        });
+        
+        return { arvore, categoriasRaizes: ordemCategorias };
     }
 
     buscarPorTermo(termo, opcoes = { fuzzy: true, global: true }) {

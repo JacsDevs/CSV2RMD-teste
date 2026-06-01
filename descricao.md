@@ -25,11 +25,11 @@ modulo-dados/
 │   │   ├── exportadorHtmlLinear.js
 │   │   ├── exportadorTypst.js
 │   │   ├── exportadorZip.js
-│   │   ├── moduloEditor.js
+│   │   ├── compiladorPdf.js
 │   │   ├── validadorDados.js
 │   │   └── renderizador.js
 │   └── principal.js                # Ponto de entrada
-└── index.html                      # Interface de teste
+└── index-wizard.html               # Interface Principal (Wizard)
 ```
 
 ---
@@ -233,17 +233,14 @@ modulo-dados/
 - Utiliza o JSZip para agrupar dados e mídias
 - Gera um arquivo compactado contendo: o dicionário original (`.csv`), o projeto (se houver) e preserva as árvores de diretórios das mídias (`audio/`, `foto/`, `video/`)
 
----
+### 4.7 `compiladorPdf.js`
 
-### 4.7 `moduloEditor.js`
-
-**Responsabilidade:** Gerenciar a edição estruturada de itens lexicais em tempo de execução.
+**Responsabilidade:** Compilar código Typst em PDF utilizando WebAssembly no navegador.
 
 **O que faz:**
-- Localiza a linha selecionada nos dados brutos
-- Desempacota (`_desempacotar`) informações agrupadas na sintaxe do sistema (separados por `\|`) em propriedades de formulário legíveis
-- Empacota (`_empacotar`) alterações do usuário de volta para o padrão seguro da planilha original
-- Autoriza a reconstrução do banco após uma atualização
+- Injeta fontes e dependências dentro da memória do compilador
+- Resolve o roteamento virtual mapeando os arquivos do VFS para a estrutura da compilação (`/foto/...`)
+- Executa a compilação offline do arquivo Typst, devolvendo o binário (Blob) final em PDF
 
 ---
 
@@ -280,21 +277,20 @@ modulo-dados/
 - Inicializa módulos adicionais (exportação)
 - Conecta botões da interface às funções do sistema
 
----
+## 6. `index-wizard.html` - INTERFACE PRINCIPAL
 
-## 6. `index.html` - INTERFACE DE TESTE
-
-**Responsabilidade:** Fornecer interface simples para testar o sistema.
+**Responsabilidade:** Controlar a jornada do usuário através do assistente (Wizard) de exportação passo a passo.
 
 **O que faz:**
-- Botão para selecionar pasta
-- Botão para carregar planilha
-- Busca e filtros básicos
-- Exibição de estatísticas
+- Interface gráfica Premium interativa, com layout expansível
+- Modais e popups customizados para pré-visualização HTML, Typst e PDF
+- Pré-visualização inteligente (substituição de paths em RAM por Blob URLs para funcionar offline)
+- Aciona métodos do VFS, Exportação e Compilação
 
 **Não faz:**
-- Não contém lógica de negócio
-- Não processa dados
+- Não contém regras de conversão ou validação das mídias
+- Não gerencia a estrutura dos dados
+- Delega a lógica complexa de processamento para os módulos do sistema
 
 ---
 

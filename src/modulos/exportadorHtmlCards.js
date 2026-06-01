@@ -120,6 +120,8 @@ class ExportadorHtmlCards extends ExportadorBase {
 
         const { arvore, categoriasRaizes } = this.db.obterArvoreOrdenada();
         
+        const scriptsDados = await this.gerarScriptsDados(opcoes.embutirMidias);
+        
         let corpoHtml = '';
         const processarEntradasHTML = (noDict) => {
             let html = '';
@@ -134,7 +136,6 @@ class ExportadorHtmlCards extends ExportadorBase {
             corpoHtml += `</section>\n`;
         }
 
-        const scriptsDados = await this.gerarScriptsDados(opcoes.embutirMidias);
         const meta = opcoes.metadados || {};
 
         let html = this.templatePrincipal

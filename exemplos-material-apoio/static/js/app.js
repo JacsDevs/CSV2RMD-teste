@@ -732,26 +732,52 @@ function popularEstrutura() {
         categoriasUnicas.forEach((cat, i) => {
             const item = document.createElement('div');
             item.className = 'sortable-item';
-            item.draggable = true;
             item.dataset.category = cat;
-            item.innerHTML = `<span class="handle">☰</span><span>${cat}</span><span style="margin-left:auto;font-size:11px;color:var(--text-muted);">#${i + 1}</span>`;
-            item.addEventListener('dragstart', e => { 
-                item.classList.add('dragging'); 
-                e.dataTransfer.effectAllowed = 'move'; 
-            });
-            item.addEventListener('dragend', () => { 
-                item.classList.remove('dragging'); 
-                salvarEstado(); 
-            });
+            item.innerHTML = `<span class="handle" style="cursor: grab; touch-action: none;">☰</span><span>${cat}</span><span style="margin-left:auto;font-size:11px;color:var(--text-muted);">#${i + 1}</span>`;
             gridSemantic.appendChild(item);
         });
-        gridSemantic.addEventListener('dragover', e => { 
-            e.preventDefault(); 
-            const dragging = gridSemantic.querySelector('.dragging'); 
-            if (!dragging) return; 
-            const after = getDragAfterElement(gridSemantic, e.clientY); 
-            gridSemantic.insertBefore(dragging, after); 
-        });
+        
+        if (!gridSemantic.dataset.pointerAtivo) {
+            let itemArrastado = null;
+
+            gridSemantic.addEventListener('pointerdown', e => {
+                const handle = e.target.closest('.handle');
+                if (!handle) return;
+                const item = handle.closest('.sortable-item');
+                if (!item) return;
+
+                itemArrastado = item;
+                itemArrastado.classList.add('dragging');
+                e.preventDefault();
+            });
+
+            document.addEventListener('pointermove', e => {
+                if (!itemArrastado) return;
+                e.preventDefault();
+                const after = getDragAfterElement(gridSemantic, e.clientY);
+                if (after) {
+                    gridSemantic.insertBefore(itemArrastado, after);
+                } else {
+                    gridSemantic.appendChild(itemArrastado);
+                }
+            }, { passive: false });
+
+            document.addEventListener('pointerup', e => {
+                if (!itemArrastado) return;
+                itemArrastado.classList.remove('dragging');
+                itemArrastado = null;
+                salvarEstado();
+            });
+
+            document.addEventListener('pointercancel', e => {
+                if (!itemArrastado) return;
+                itemArrastado.classList.remove('dragging');
+                itemArrastado = null;
+                salvarEstado();
+            });
+
+            gridSemantic.dataset.pointerAtivo = 'true';
+        }
     }
 }
 
