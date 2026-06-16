@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Template usado pelo pipeline aapt2 (exportador_android.rs).
+  Diferente de android-template/app/src/main/AndroidManifest.xml (buildado via Gradle):
+  aqui o atributo "package" e a tag <uses-sdk> precisam estar explícitos no texto,
+  pois não há merge do Gradle fora do pipeline standalone aapt2.
+  android:name da activity é o caminho COMPLETO da classe, pois o classes.dex é
+  reaproveitado tal como compilado pelo template.apk (Fase 4) — nunca recompilado.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="{{PACKAGE_NAME}}"
+    android:versionCode="{{VERSION_CODE}}"
+    android:versionName="{{VERSION_NAME}}">
+
+    <uses-sdk android:minSdkVersion="21" android:targetSdkVersion="34"/>
+
+    <uses-permission android:name="android.permission.INTERNET"/>
+
+    <application
+        android:allowBackup="false"
+        android:icon="@drawable/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/AppTheme">
+
+        <activity
+            android:name="br.com.csv2dmli.dicionario.MainActivity"
+            android:exported="true"
+            android:configChanges="orientation|screenSize|keyboardHidden">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+    </application>
+</manifest>

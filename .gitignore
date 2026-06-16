@@ -15,6 +15,7 @@ src-tauri/resources/*.keystore
 
 # Artefatos de build local
 dist/
+dist-desktop/
 
 # Build Android (android-template/)
 android-template/.gradle/

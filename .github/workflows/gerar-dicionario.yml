@@ -1,0 +1,129 @@
+name: Gerar Dicionario (Web -> APK/AAB)
+
+# Disparado pelo wizard (index-wizard.html) via API do GitHub: ele cria um
+# commit com CSV+midias+config.json em dados/ e empurra para um branch
+# gerar/<timestamp>, o que aciona este workflow automaticamente.
+on:
+  push:
+    branches:
+      - 'gerar/**'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Instalar Android SDK platform + build-tools
+        run: |
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
+            "platforms;android-34" \
+            "build-tools;34.0.0" 2>/dev/null || true
+
+      - name: Setup Gradle 8.13 (sem wrapper jar)
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: "8.13"
+
+      - name: Build android-template (classes.dex fixo, nunca recompilado por dicionario)
+        working-directory: android-template
+        run: gradle assembleRelease
+
+      - name: Baixar bundletool.jar
+        run: curl -fL "https://github.com/google/bundletool/releases/download/1.18.1/bundletool-all-1.18.1.jar" -o bundletool.jar
+
+      - name: Gerar bundle web (HTML + midias) a partir de dados/
+        run: node tools/build-bundle.mjs --in dados --out dist/bundle
+
+      - name: Ler metadados de dados/config.json
+        id: cfg
+        run: |
+          NOME=$(node -e "const c=require('./dados/config.json'); process.stdout.write(c.nome || c.metadados?.titulo || 'Dicionario')")
+          VERSAO=$(node -e "const c=require('./dados/config.json'); process.stdout.write(c.metadados?.versao || '1.0')")
+          PKG_BASE=$(echo "$NOME" | tr '[:upper:]' '[:lower:]' | iconv -f utf8 -t ascii//TRANSLIT 2>/dev/null | tr -cs 'a-z0-9' '_' | sed 's/^_*//;s/_*$//')
+          echo "nome=$NOME" >> "$GITHUB_OUTPUT"
+          echo "versao=$VERSAO" >> "$GITHUB_OUTPUT"
+          echo "pkg=br.com.csv2dmli.${PKG_BASE:-dicionario}" >> "$GITHUB_OUTPUT"
+
+      - name: Preparar keystore de assinatura
+        run: |
+          mkdir -p /tmp/ks
+          if [ -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ]; then
+            echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > /tmp/ks/upload.jks
+          else
+            echo "AVISO: ANDROID_KEYSTORE_BASE64 nao configurado — gerando keystore nova nesta run." >&2
+            echo "Builds futuras terao assinaturas DIFERENTES (impede update na Play Store)." >&2
+            keytool -genkeypair -v -keystore /tmp/ks/upload.jks -alias upload \
+              -keyalg RSA -keysize 4096 -validity 10000 -storetype PKCS12 \
+              -storepass "${{ secrets.ANDROID_KS_PASS || 'dicionario123' }}" \
+              -keypass "${{ secrets.ANDROID_KS_PASS || 'dicionario123' }}" \
+              -dname "CN=${{ steps.cfg.outputs.nome }}, O=CSV2DMLI, L=Unknown, ST=Unknown, C=BR"
+          fi
+
+      - name: Build CLI build_android (release)
+        run: cargo build --release --bin build_android --manifest-path src-tauri/Cargo.toml
+
+      - name: Gerar APK + AAB
+        run: |
+          mkdir -p dist/android
+          ICONE_FLAG=""
+          if [ -f dados/icone.png ]; then ICONE_FLAG="--icone dados/icone.png"; fi
+          ./src-tauri/target/release/build_android \
+            --html dist/bundle/index.html \
+            --midias-dir dist/bundle \
+            --nome-app "${{ steps.cfg.outputs.nome }}" \
+            --pasta-saida dist/android \
+            --keystore /tmp/ks/upload.jks \
+            --ks-pass "${{ secrets.ANDROID_KS_PASS || 'dicionario123' }}" \
+            --ks-alias upload \
+            --ks-key-pass "${{ secrets.ANDROID_KS_PASS || 'dicionario123' }}" \
+            --package-name "${{ steps.cfg.outputs.pkg }}" \
+            --version-name "${{ steps.cfg.outputs.versao }}" \
+            --version-code "${{ github.run_number }}" \
+            $ICONE_FLAG \
+            --aapt2 "$ANDROID_HOME/build-tools/34.0.0/aapt2" \
+            --zipalign "$ANDROID_HOME/build-tools/34.0.0/zipalign" \
+            --java "$(command -v java)" \
+            --android-jar "$ANDROID_HOME/platforms/android-34/android.jar" \
+            --apksigner-jar "$ANDROID_HOME/build-tools/34.0.0/lib/apksigner.jar" \
+            --bundletool-jar "bundletool.jar" \
+            --template-dir "src-tauri/resources/android-template" \
+            --template-apk "android-template/app/build/outputs/apk/release/app-release-unsigned.apk"
+
+      - name: Empacotar bundle web para download
+        run: cd dist/bundle && zip -r ../web.zip . && cd -
+
+      - name: Criar Release com APK + AAB + web.zip
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: dicionario-${{ github.run_id }}
+          name: "${{ steps.cfg.outputs.nome }} (build ${{ github.run_number }})"
+          body: |
+            Gerado automaticamente a partir do branch `${{ github.ref_name }}`.
+
+            - **`.apk`** — instalação direta no Android (sideload)
+            - **`.aab`** — upload na Google Play Console
+            - **`web.zip`** — versão HTML/JS para hospedar ou abrir localmente no navegador
+          files: |
+            dist/android/*.apk
+            dist/android/*.aab
+            dist/web.zip
+
+      - name: Remover branch temporário gerar/*
+        if: always()
+        run: git push origin --delete "${{ github.ref_name }}" || true

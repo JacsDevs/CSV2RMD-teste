@@ -5,20 +5,19 @@
   "main": "index.js",
   "scripts": {
     "dev": "npx live-server --port=8080 --no-browser --open=index-wizard.html .",
-    "build": "echo 'No build step required for plain HTML'",
+    "build": "node scripts/prepare-frontend-dist.mjs",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
   "devDependencies": {
     "@tauri-apps/cli": "^2.11.2"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.11.0",
     "@tauri-apps/plugin-dialog": "^2.7.1",
-    "@tauri-apps/plugin-fs": "^2.5.1",
-    "jsdom": "^29.1.1"
+    "@tauri-apps/plugin-fs": "^2.5.1"
   }
 }

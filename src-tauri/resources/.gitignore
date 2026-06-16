@@ -1,0 +1,15 @@
+# JRE embutido — gerado pelo script scripts/prepare-resources.sh
+jre/
+
+# Ferramenta Google — baixada pelo script scripts/prepare-resources.sh
+bundletool.jar
+
+# aapt2/zipalign/apksigner.jar/android.jar — copiados do Android SDK local
+android-sdk/
+
+# APK template (classes.dex fixo) — build do android-template/ (Fase 4) ou artefato do CI
+template.apk
+
+# Keystore de assinatura — NUNCA commitar (contém chave privada)
+*.jks
+*.keystore

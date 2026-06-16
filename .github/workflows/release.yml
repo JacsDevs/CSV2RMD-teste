@@ -1,0 +1,158 @@
+name: Build e Release Tauri
+
+# Disparado ao criar uma tag vX.Y.Z (ex: git tag v1.0.0 && git push --tags)
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+jobs:
+  build-tauri:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            label: windows-x64
+          - os: ubuntu-22.04
+            label: linux-x64
+
+    runs-on: ${{ matrix.os }}
+    name: Build (${{ matrix.label }})
+
+    steps:
+      # ------------------------------------------------------------------
+      # 1. Checkout
+      # ------------------------------------------------------------------
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ------------------------------------------------------------------
+      # 2. Node.js + dependências npm
+      # ------------------------------------------------------------------
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Instalar dependências npm
+        run: npm ci
+
+      # ------------------------------------------------------------------
+      # 3. Rust toolchain
+      # ------------------------------------------------------------------
+      - name: Setup Rust (stable)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust/Cargo
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      # ------------------------------------------------------------------
+      # 4. Dependências nativas (Linux apenas)
+      # ------------------------------------------------------------------
+      - name: Instalar dependências Linux
+        if: matrix.os == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf
+
+      # ------------------------------------------------------------------
+      # 5. JDK + Android SDK (necessários para template.apk e android-sdk/
+      #    da Fase 5 — aapt2/zipalign/apksigner.jar/android.jar)
+      # ------------------------------------------------------------------
+      - name: Setup JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Instalar Android SDK platform + build-tools (Linux)
+        if: matrix.os == 'ubuntu-22.04'
+        run: |
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
+            "platforms;android-34" "build-tools;34.0.0" 2>/dev/null || true
+
+      - name: Instalar Android SDK platform + build-tools (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          & "$env:ANDROID_HOME\cmdline-tools\latest\bin\sdkmanager.bat" `
+            "platforms;android-34" "build-tools;34.0.0" 2>$null
+
+      - name: Setup Gradle 8.13 (sem wrapper jar)
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: "8.13"
+
+      - name: Build android-template (classes.dex fixo p/ template.apk)
+        working-directory: android-template
+        run: gradle assembleRelease
+
+      - name: Copiar template.apk para src-tauri/resources/
+        shell: bash
+        run: cp android-template/app/build/outputs/apk/release/app-release-unsigned.apk src-tauri/resources/template.apk
+
+      # ------------------------------------------------------------------
+      # 6. Cache dos recursos pesados (JRE + bundletool)
+      #    Evita baixar ~230MB a cada build desnecessariamente
+      # ------------------------------------------------------------------
+      - name: Cache JRE embutido
+        uses: actions/cache@v4
+        with:
+          path: src-tauri/resources/jre
+          key: jre-${{ matrix.os }}-temurin-21
+
+      - name: Cache bundletool
+        uses: actions/cache@v4
+        with:
+          path: src-tauri/resources/bundletool.jar
+          key: bundletool-1.18.1
+
+      # ------------------------------------------------------------------
+      # 7. Preparar recursos (baixa JRE + bundletool, copia aapt2/zipalign/
+      #    apksigner.jar/android.jar do Android SDK recém-instalado)
+      # ------------------------------------------------------------------
+      - name: Preparar recursos (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: ./scripts/prepare-resources.ps1
+
+      - name: Preparar recursos (Linux)
+        if: matrix.os == 'ubuntu-22.04'
+        run: |
+          chmod +x ./scripts/prepare-resources.sh
+          ./scripts/prepare-resources.sh
+
+      # ------------------------------------------------------------------
+      # 8. Build e publicação do release via tauri-action
+      #    Produz instaladores nativos e os anexa ao GitHub Release
+      # ------------------------------------------------------------------
+      - name: Build Tauri + publicar release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'CSV2DMLI ${{ github.ref_name }}'
+          releaseBody: |
+            ## O que há nesta versão
+            _Atualize este texto nas notas de release._
+
+            ## Downloads
+            | Plataforma | Arquivo |
+            |---|---|
+            | Windows | `CSV2DMLI_x.x.x_x64-setup.exe` ou `.msi` |
+            | Linux | `csv2dmli_x.x.x_amd64.deb` ou `.AppImage` |
+
+            > O app inclui Java embutido — nenhuma instalação adicional necessária.
+          releaseDraft: true
+          prerelease: false
