@@ -7,6 +7,9 @@ on:
       - 'v*.*.*'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build-tauri:
     strategy:
@@ -140,6 +143,10 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # AppImage usa FUSE para montar o pacote; containers de CI normalmente
+          # nao tem o modulo FUSE do kernel acessivel — essa flag faz o
+          # linuxdeploy/appimagetool extrair e rodar sem montar via FUSE.
+          APPIMAGE_EXTRACT_AND_RUN: "1"
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'CSV2DMLI ${{ github.ref_name }}'
