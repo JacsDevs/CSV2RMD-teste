@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "npx live-server --port=8080 --no-browser --open=index-wizard.html .",
     "build": "node scripts/prepare-frontend-dist.mjs",
+    "tauri": "tauri",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
