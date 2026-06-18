@@ -1,8 +1,8 @@
 name: Gerar Dicionario (Web -> APK/AAB)
 
 # Disparado pelo wizard (index-wizard.html) via API do GitHub: ele cria um
-# commit com CSV+midias+config.json em dados/ e empurra para um branch
-# gerar/<timestamp>, o que aciona este workflow automaticamente.
+# commit com dados/payload.zip (index.html + audio/ + foto/ + video/ + config.json)
+# e empurra para um branch gerar/<timestamp>, o que aciona este workflow automaticamente.
 on:
   push:
     branches:
@@ -17,11 +17,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Setup Node 20
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
 
       - name: Instalar dependencias nativas Linux (libs GTK/WebKit do crate tauri)
         run: |
@@ -57,15 +52,18 @@ jobs:
       - name: Baixar bundletool.jar
         run: curl -fL "https://github.com/google/bundletool/releases/download/1.18.1/bundletool-all-1.18.1.jar" -o bundletool.jar
 
-      - name: Gerar bundle web (HTML + midias) a partir de dados/
-        run: node tools/build-bundle.mjs --in dados --out dist/bundle
+      - name: Descompactar payload.zip
+        run: |
+          mkdir -p dist/bundle
+          unzip -o dados/payload.zip -d dist/bundle
 
-      - name: Ler metadados de dados/config.json
+      - name: Ler metadados de dist/bundle/config.json
         id: cfg
         run: |
-          NOME=$(node -e "const c=require('./dados/config.json'); process.stdout.write(c.nome || c.metadados?.titulo || 'Dicionario')")
-          VERSAO=$(node -e "const c=require('./dados/config.json'); process.stdout.write(c.metadados?.versao || '1.0')")
-          PKG=$(node -e "const c=require('./dados/config.json'); process.stdout.write(c.android?.packageName || '')")
+          CONFIG="dist/bundle/config.json"
+          NOME=$(jq -r '.nome // .metadados.titulo // "Dicionario"' "$CONFIG" 2>/dev/null || echo "Dicionario")
+          VERSAO=$(jq -r '.metadados.versao // "1.0"' "$CONFIG" 2>/dev/null || echo "1.0")
+          PKG=$(jq -r '.android.packageName // ""' "$CONFIG" 2>/dev/null || echo "")
           if [ -z "$PKG" ]; then
             PKG_BASE=$(echo "$NOME" | tr '[:upper:]' '[:lower:]' | iconv -f utf8 -t ascii//TRANSLIT 2>/dev/null | tr -cs 'a-z0-9' '_' | sed 's/^_*//;s/_*$//')
             PKG="br.com.csv2dmli.${PKG_BASE:-dicionario}"
@@ -96,7 +94,7 @@ jobs:
         run: |
           mkdir -p dist/android
           ICONE_FLAG=""
-          if [ -f dados/icone.png ]; then ICONE_FLAG="--icone dados/icone.png"; fi
+          if [ -f dist/bundle/icone.png ]; then ICONE_FLAG="--icone dist/bundle/icone.png"; fi
           ./src-tauri/target/release/build_android \
             --html dist/bundle/index.html \
             --midias-dir dist/bundle \

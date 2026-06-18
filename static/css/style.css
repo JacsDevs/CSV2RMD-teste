@@ -569,6 +569,7 @@ input:checked + .toggle-slider:before { transform: translateX(24px); }
 .export-pdf:hover { border-color: #ef4444; background: #fef2f2; }
 .export-csv:hover { border-color: #10b981; background: #ecfdf5; }
 .export-json:hover { border-color: #8b5cf6; background: #f5f3ff; }
+.export-android:hover { border-color: #22c55e; background: #f0fdf4; }
 
 /* =========================================
    TERMINAL PANEL (Right Sidebar)

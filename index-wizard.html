@@ -659,21 +659,6 @@
           </div>
         </div>
 
-        <div style="margin-top:16px; padding:14px 16px; background:#f0f9ff; border:1px solid #bae6fd; border-radius:10px;">
-          <label style="display:flex; align-items:center; gap:12px; cursor:pointer;">
-            <div class="toggle-switch">
-              <input type="checkbox" id="apkEmbutirMidias" checked>
-              <div class="toggle-slider"></div>
-            </div>
-            <div>
-              <strong>📦 Embutir mídias no HTML (Base64)</strong>
-              <p style="font-size:0.82em; color:#0369a1; margin:4px 0 0 0;">
-                Recomendado — o APK será completamente autônomo.
-                Se desmarcado, as mídias serão incluídas como arquivos separados dentro do AAB.
-              </p>
-            </div>
-          </label>
-        </div>
       </div>
 
       <!-- PASSO 3 — Segurança & Assinatura -->
@@ -1789,7 +1774,6 @@
         const pais            = (document.getElementById('apkPais').value.trim() || 'BR').toUpperCase();
         const nomeApp         = document.getElementById('apkNomeApp').value.trim();
         const pasta           = document.getElementById('apkPastaSaida').value.trim();
-        const embutirMidias   = document.getElementById('apkEmbutirMidias').checked;
 
         const modo = document.querySelector('input[name="apkKsMode"]:checked')?.value || 'auto';
         let ksPath = '', storePass = '', alias = 'upload', keyPass = '';
@@ -1824,31 +1808,21 @@
         apkSetProg('apkPS1', 'done', 'Java verificado ✓');
 
         apkSetProg('apkPS2', 'running', 'Gerando HTML do dicionário…');
-        document.getElementById('apkStatusDesc').textContent =
-            embutirMidias ? 'Embutindo mídias no HTML (pode levar alguns segundos)…'
-                          : 'Gerando HTML com mídias separadas…';
+        document.getElementById('apkStatusDesc').textContent = 'Gerando HTML com mídias separadas…';
 
         const selectWizard = document.getElementById('templateExportacaoSelect');
         const formato = selectWizard ? selectWizard.value : 'linear';
-        let htmlDicionario, midiasExtras = null;
-
-        if (embutirMidias) {
-            htmlDicionario = formato === 'card'
-                ? await window.exportador.exportarHtmlCards({ embutirMidias: true })
-                : await window.exportador.exportarHtmlLinear({ embutirMidias: true });
-        } else {
-            htmlDicionario = formato === 'card'
-                ? await window.exportador.exportarHtmlCards({ embutirMidias: false })
-                : await window.exportador.exportarHtmlLinear({ embutirMidias: false });
-            midiasExtras = {};
-            for (const tipo of ['audio', 'imagem', 'video']) {
-                const dirName = tipo === 'imagem' ? 'foto' : tipo;
-                const nomes   = window.sistema.vfs.obterTodosNomes(tipo);
-                const arqs    = window.sistema.vfs.obterTodosArquivos(tipo);
-                for (let i = 0; i < nomes.length; i++) {
-                    const buf = await arqs[i].arrayBuffer();
-                    midiasExtras[`${dirName}/${nomes[i]}`] = Array.from(new Uint8Array(buf));
-                }
+        const htmlDicionario = formato === 'card'
+            ? await window.exportador.exportarHtmlCards({ embutirMidias: false })
+            : await window.exportador.exportarHtmlLinear({ embutirMidias: false });
+        const midiasExtras = {};
+        for (const tipo of ['audio', 'imagem', 'video']) {
+            const dirName = tipo === 'imagem' ? 'foto' : tipo;
+            const nomes   = window.sistema.vfs.obterTodosNomes(tipo);
+            const arqs    = window.sistema.vfs.obterTodosArquivos(tipo);
+            for (let i = 0; i < nomes.length; i++) {
+                const buf = await arqs[i].arrayBuffer();
+                midiasExtras[`${dirName}/${nomes[i]}`] = Array.from(new Uint8Array(buf));
             }
         }
         apkSetProg('apkPS2', 'done', 'HTML gerado ✓');
@@ -1894,56 +1868,66 @@
         const progEl = document.getElementById('apkProgressSteps');
         progEl.style.cssText = 'font-family:monospace; font-size:0.82em; background:#0f172a; color:#e2e8f0; padding:12px 14px; border-radius:8px; max-height:200px; overflow-y:auto;';
         progEl.innerHTML = '';
-        document.getElementById('apkStatusTitle').textContent = 'Enviando para o GitHub Actions…';
+        document.getElementById('apkStatusTitle').textContent = 'Preparando pacote para o GitHub Actions…';
         document.getElementById('apkStatusDesc').textContent  = 'O dicionário está sendo processado na nuvem. Isso pode levar alguns minutos.';
 
         const [owner, repo] = repoSlug.split('/');
         const base    = `https://api.github.com/repos/${owner}/${repo}`;
         const headers = { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' };
 
-        ghLog('📦 Coletando arquivos do dicionário...');
-        const arquivos = [];
-        arquivos.push({ caminho: 'dados/dicionario.csv', conteudo: await ghLerComoBase64(cp.arquivosEncontrados.planilha) });
-        for (const f of cp.arquivosEncontrados.audio  || []) arquivos.push({ caminho: `dados/midias/audio/${f.name}`,  conteudo: await ghLerComoBase64(f) });
-        for (const f of cp.arquivosEncontrados.imagem || []) arquivos.push({ caminho: `dados/midias/imagem/${f.name}`, conteudo: await ghLerComoBase64(f) });
-        for (const f of cp.arquivosEncontrados.video  || []) arquivos.push({ caminho: `dados/midias/video/${f.name}`,  conteudo: await ghLerComoBase64(f) });
+        // 1. Gerar HTML com caminhos relativos (mídias em pastas separadas)
+        ghLog('🖋️ Gerando HTML do dicionário (caminhos relativos)...');
+        const selectWizard = document.getElementById('templateExportacaoSelect');
+        const formato = selectWizard ? selectWizard.value : 'linear';
+        const htmlDicionario = formato === 'card'
+            ? await window.exportador.exportarHtmlCards({ embutirMidias: false })
+            : await window.exportador.exportarHtmlLinear({ embutirMidias: false });
 
+        // 2. Montar config.json com metadados do app
         const config = window.configurador ? window.configurador.getConfig() : {};
-        const nomeApp    = document.getElementById('apkNomeApp').value.trim();
-        const versaoStr  = document.getElementById('apkVersao')?.value.trim() || '1.0';
+        const nomeApp     = document.getElementById('apkNomeApp').value.trim();
+        const versaoStr   = document.getElementById('apkVersao')?.value.trim() || '1.0';
         const packageName = document.getElementById('apkPackageName')?.value.trim() || '';
         config.nome = config.nome || nomeApp;
         config.metadados = config.metadados || {};
-        config.metadados.titulo  = config.metadados.titulo  || nomeApp;
-        config.metadados.versao  = versaoStr;
+        config.metadados.titulo = config.metadados.titulo || nomeApp;
+        config.metadados.versao = versaoStr;
         if (packageName) { config.android = config.android || {}; config.android.packageName = packageName; }
-        arquivos.push({ caminho: 'dados/config.json', conteudo: btoa(unescape(encodeURIComponent(JSON.stringify(config, null, 2)))) });
 
-        if (_apkIconeBytes.length > 0) {
-            let bin = ''; const chunk = 0x8000;
-            for (let i = 0; i < _apkIconeBytes.length; i += chunk)
-                bin += String.fromCharCode.apply(null, _apkIconeBytes.slice(i, i + chunk));
-            arquivos.push({ caminho: 'dados/icone.png', conteudo: btoa(bin) });
-        }
+        // 3. Montar payload.zip: index.html + config.json + audio/ + foto/ + video/ + icone.png
+        ghLog('📦 Compactando payload.zip...');
+        const zip = new JSZip();
+        zip.file('index.html', htmlDicionario);
+        zip.file('config.json', JSON.stringify(config, null, 2));
+        for (const f of cp.arquivosEncontrados.audio  || []) zip.file(`audio/${f.name}`,  await f.arrayBuffer());
+        for (const f of cp.arquivosEncontrados.imagem || []) zip.file(`foto/${f.name}`,   await f.arrayBuffer());
+        for (const f of cp.arquivosEncontrados.video  || []) zip.file(`video/${f.name}`,  await f.arrayBuffer());
+        if (_apkIconeBytes.length > 0) zip.file('icone.png', _apkIconeBytes);
 
-        ghLog(`   ${arquivos.length} arquivo(s) prontos para envio.`);
+        const zipBytes = await zip.generateAsync({ type: 'uint8array', compression: 'DEFLATE', compressionOptions: { level: 6 } });
+        ghLog(`   payload.zip: ${(zipBytes.length / 1024).toFixed(0)} KB`);
 
+        // 4. Converter ZIP para base64
+        let zipBase64 = '';
+        const CHUNK = 0x8000;
+        for (let i = 0; i < zipBytes.length; i += CHUNK)
+            zipBase64 += String.fromCharCode.apply(null, zipBytes.subarray(i, i + CHUNK));
+        zipBase64 = btoa(zipBase64);
+
+        // 5. Criar blob e commit com o único arquivo dados/payload.zip
         ghLog('🔍 Lendo último commit de main...');
         const refMain     = await ghApi(base, headers, '/git/ref/heads/main', 'GET');
         const baseSha     = refMain.object.sha;
         const baseCommit  = await ghApi(base, headers, `/git/commits/${baseSha}`, 'GET');
         const baseTreeSha = baseCommit.tree.sha;
 
-        ghLog('⬆️ Enviando arquivos (blobs)...');
-        const treeItems = [];
-        for (const a of arquivos) {
-            const blob = await ghApi(base, headers, '/git/blobs', 'POST', { content: a.conteudo, encoding: 'base64' });
-            treeItems.push({ path: a.caminho, mode: '100644', type: 'blob', sha: blob.sha });
-            ghLog(`   ✓ ${a.caminho}`);
-        }
+        ghLog('⬆️ Enviando payload.zip...');
+        const blob = await ghApi(base, headers, '/git/blobs', 'POST', { content: zipBase64, encoding: 'base64' });
+        const treeItems = [{ path: 'dados/payload.zip', mode: '100644', type: 'blob', sha: blob.sha }];
+        ghLog('   ✓ dados/payload.zip');
 
         ghLog('🌳 Criando árvore e commit...');
-        const novaTree  = await ghApi(base, headers, '/git/trees',   'POST', { base_tree: baseTreeSha, tree: treeItems });
+        const novaTree   = await ghApi(base, headers, '/git/trees',   'POST', { base_tree: baseTreeSha, tree: treeItems });
         const novoCommit = await ghApi(base, headers, '/git/commits', 'POST', {
             message: `Gerar dicionário via wizard (${new Date().toLocaleString('pt-BR')})`,
             tree: novaTree.sha, parents: [baseSha]
@@ -1994,11 +1978,10 @@
         }
 
         // Mostrar/ocultar seções dependentes do modo
-        document.getElementById('apkGitHubFields').style.display   = _apkEhOnline ? 'block' : 'none';
-        document.getElementById('apkPastaContainer').style.display = _apkEhOnline ? 'none'  : 'block';
-        document.getElementById('apkKsOnlineNotice').style.display = _apkEhOnline ? 'block' : 'none';
-        document.getElementById('apkKsLocalSection').style.display = _apkEhOnline ? 'none'  : 'block';
-
+        document.getElementById('apkGitHubFields').style.display    = _apkEhOnline ? 'block' : 'none';
+        document.getElementById('apkPastaContainer').style.display  = _apkEhOnline ? 'none'  : 'block';
+        document.getElementById('apkKsOnlineNotice').style.display  = _apkEhOnline ? 'block' : 'none';
+        document.getElementById('apkKsLocalSection').style.display  = _apkEhOnline ? 'none'  : 'block';
         // Pré-preencher campos GitHub (modo online)
         if (_apkEhOnline) {
             document.getElementById('ghRepo').value  = localStorage.getItem('csv2dmli_gh_repo')  || '';
@@ -2011,10 +1994,6 @@
             || 'Dicionario';
         document.getElementById('apkNomeApp').value = nomeDic;
         apkAtualizarPackageName();
-
-        // Sincronizar toggle de mídias com passo 5
-        const swMidia = document.getElementById('swMidia');
-        if (swMidia) document.getElementById('apkEmbutirMidias').checked = swMidia.checked;
 
         // Carregar caminho do keystore (apenas local)
         if (!_apkEhOnline) {

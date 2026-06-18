@@ -7,7 +7,7 @@
 
 // CONFIGURAR FONTES - Array de prioridade com fallback
 #set text(
-  font: ("Charis SIL", "Linux Libertine", "Times New Roman", "Arial"),
+  font: ("Charis SIL", "Linux Libertine"),
   size: 12pt, 
   lang: "pt",
   fallback: true
@@ -21,8 +21,19 @@
 #show heading.where(level: 2): set text(size: 14pt)
 #show heading.where(level: 3): set text(size: 12pt)
 
+
+#import "/in-dexter.typ": *
+#import "/cmarker.typ": *
+
 // ============================================
-// 1. CAPA (DEGRADÊ SUPER SUAVE)
+// CONFIGURAÇÃO GLOBAL
+// ============================================
+#set text(font: ("Charis SIL", "Linux Libertine", "Times New Roman", "Arial"), size: 12pt, lang: "pt")
+#set par(justify: true, leading: 0.5em, first-line-indent: 0pt)
+
+
+// ============================================
+// 1. CAPA (DEGRADÊ SUPER SUAVE - CORRIGIDO)
 // ============================================
 #set page(paper: "a4", margin: (top: 3.5cm, bottom: 3.5cm, left: 2cm, right: 2cm), header: none, footer: none)
 
@@ -48,14 +59,15 @@
   #set align(center)
   #v(6.5cm) 
   
-  #text(weight: "bold", size: 18pt, fill: rgb("#1b4332"), hyphenate: false)[{{ metadados.titulo }}]
+  #text(weight: "bold", size: 28pt, fill: rgb("#1b4332"))[{{ metadados.pdf }}]
   #v(1.5cm)
-  #text(size: 16pt, fill: rgb("#2d6a4f"), hyphenate: false)[#strong[{{ metadados.autor }}]]
+  #text(size: 16pt, fill: rgb("#2d6a4f"))[#strong[{{ metadados.autor }}]]
   #v(1fr)
   #text(size: 12pt, fill: rgb("#5a5a5a"))[{{ metadados.ano }}] \
   #v(0.5cm)
   #text(size: 12pt, fill: rgb("#7a7a7a"))[Versão: {{ metadados.versao }}]
 ]
+
 
 // ============================================
 // 2. FOLHA DE ROSTO
@@ -73,8 +85,9 @@
   #text(size: 12pt)[{{ metadados.ano }}]
 ]
 
+
 // ============================================
-// 3. PRÉ-TEXTUAIS E INTRODUÇÃO
+// 2. PRÉ-TEXTUAIS E INTRODUÇÃO (NUMERAÇÃO NORMAL NO RODAPÉ)
 // ============================================
 #pagebreak()
 #counter(page).update(1)
@@ -97,7 +110,7 @@
 #render(texto_markdown.text)
 
 // ============================================
-// 4. DICIONÁRIO E CORPO
+// 3. DICIONÁRIO (CABEÇALHO ESPECIAL, SEM RODAPÉ)
 // ============================================
 #pagebreak()
 
@@ -126,10 +139,10 @@
 )
 
 #set page(columns: 2)
-{{ corpo_dicionario }}
+{{ corpo_dicionario | safe }}
 
 // ============================================
-// 5. PÓS-TEXTUAIS
+// 4. PÓS-TEXTUAIS (VOLTA NUMERAÇÃO NORMAL NO RODAPÉ)
 // ============================================
 #pagebreak()
 

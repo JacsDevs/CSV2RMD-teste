@@ -10,9 +10,15 @@
 
 #block(breakable: false, width: 100%)[
   #align(center)[
-    #box(width: 100%, align(center + horizon)[
-      #image("{{ ARQUIVO }}", height: 3.5cm, fit: "contain")
-    ])
+    #layout(size => {
+      let altura-max = calc.min(size.height * 0.55, 5.5cm)
+      let altura-min = 2.5cm
+      let altura-final = calc.max(altura-min, altura-max)
+      
+      box(width: 100% - 2mm, height: altura-final, align(center + horizon)[
+        #image("{{ ARQUIVO }}", width: 100%, height: 100%, fit: "contain")
+      ])
+    })
     
     {{#LEGENDA}}
     #v(0.15em, weak: true)
@@ -21,27 +27,7 @@
   ]
 ]
 
-{{/ARQUIVO}}{{/IMAGENS}}{{/SIGNIFICADOS}}
-
-
-{{#TEXTOS}}
-
-#v(1em, weak: true)
-#pad(left: 1em)[
-  *{{ TITULO_BASE }}*{{#TEXTO_NAO_LITERAL}} -- _{{ TEXTO_NAO_LITERAL }}_{{/TEXTO_NAO_LITERAL}}
-  {{#VARIACOES}}
-    {{#FRASES}}
-    
-    *_{{ ORIGINAL }}_*{{#TRADUCAO}} \
-    {{ TRADUCAO }}{{/TRADUCAO}}
-    {{/FRASES}}
-  {{/VARIACOES}}
-]
-{{/TEXTOS}}
-
-
-
-{{#ITENS_RELACIONADOS}} #text(size: 9pt, fill: luma(80))[Veja também: {{ ITENS_RELACIONADOS }}]{{/ITENS_RELACIONADOS}}
+{{/ARQUIVO}}{{/IMAGENS}}{{/SIGNIFICADOS}}{{#ITENS_RELACIONADOS}} #text(size: 9pt, fill: luma(80))[Veja também: {{ ITENS_RELACIONADOS }}]{{/ITENS_RELACIONADOS}}
 
 #v(0.6em, weak: true)
 #v(0.5fr, weak: true) 

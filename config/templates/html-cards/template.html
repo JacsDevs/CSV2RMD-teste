@@ -4,9 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ metadados.html }}</title>
-    <!-- Fonte e ícones -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Fontes e ícones inline (sem CDN externo — compatível com APK offline) -->
     <style>
         /* ===== VARIÁVEIS E RESET ===== */
         {{ estilos_globais }}
@@ -18,7 +16,7 @@
         }
 
         body {
-            font-family: 'Inter', sans-serif;
+            font-family: system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
             background-color: var(--cor-fundo);
             color: var(--cor-texto);
             line-height: 1.5;
@@ -493,8 +491,8 @@
         <header class="cabecalho">
             <h1>{{ metadados.html }}</h1>
             <div class="meta">
-                <span><i class="far fa-user"></i> {{ metadados.autor }}</span>
-                <span><i class="far fa-calendar-alt"></i> Versão {{ metadados.versao }}</span>
+                <span>&#128100; {{ metadados.autor }}</span>
+                <span>&#128197; Versão {{ metadados.versao }}</span>
             </div>
             <div class="introducao">
                 {{ textos.intro_html | safe }}
@@ -504,7 +502,7 @@
         <div class="barra-controle">
             <div class="busca-wrapper">
                 <input type="text" id="search-input" placeholder="Pesquisar termo, tradução, descrição...">
-                <button id="search-button"><i class="fas fa-search"></i> Buscar</button>
+                <button id="search-button">&#128269; Buscar</button>
             </div>
             <div class="filtros">
                 <select id="filtro-semantico" class="filtro-select">
@@ -527,7 +525,7 @@
 
         <div id="grid-container" class="grid-container">
             <div class="loading-indicator">
-                <i class="fas fa-spinner fa-spin"></i> Carregando dados...
+                &#9203; Carregando dados...
             </div>
         </div>
 
@@ -540,12 +538,12 @@
                 <div class="modal-header-titulo">
                     <h2 id="modal-titulo"></h2>
                     <button class="modal-audio-btn" id="modal-audio-btn" style="display: none;" title="Ouvir pronúncia">
-                        <i class="fas fa-volume-up"></i>
+                        🔊
                     </button>
                 </div>
                 <div class="modal-nav">
-                    <button class="modal-nav-btn" id="modal-anterior" title="Anterior"><i class="fas fa-chevron-left"></i></button>
-                    <button class="modal-nav-btn" id="modal-proximo" title="Próximo"><i class="fas fa-chevron-right"></i></button>
+                    <button class="modal-nav-btn" id="modal-anterior" title="Anterior">&#8249;</button>
+                    <button class="modal-nav-btn" id="modal-proximo" title="Próximo">&#8250;</button>
                 </div>
                 <button class="modal-fechar" id="modal-fechar">&times;</button>
             </div>
@@ -642,12 +640,12 @@
             html += `<div class="card-lexical">${item.TERMO || '???'}</div>`;
             html += `<div class="card-traducao">${item.INDEX || ''}</div>`;
             if (item.CLASSE) {
-                html += `<span class="card-classe"><i class="fas fa-tag"></i> ${item.CLASSE}</span>`;
+                html += `<span class="card-classe">🏷️ ${item.CLASSE}</span>`;
             }
             html += `<div class="card-midia-indicador">`;
-            if (temImagem) html += `<span><i class="fas fa-image"></i></span>`;
-            if (temAudio) html += `<span><i class="fas fa-volume-up"></i></span>`;
-            if (temVideo) html += `<span><i class="fas fa-video"></i></span>`;
+            if (temImagem) html += `<span>🖼️</span>`;
+            if (temAudio) html += `<span>🔊</span>`;
+            if (temVideo) html += `<span>🎥</span>`;
             html += `</div></div>`;
             
             if (primeiraImagem) {
@@ -664,7 +662,7 @@
             gridContainer.innerHTML = '';
             if (!itens || itens.length === 0) {
                 gridContainer.innerHTML = `<div class="sem-resultados">
-                    <i class="fas fa-search" style="font-size: 3rem; color: #cbd5e1; margin-bottom: 16px;"></i>
+                    <div style="font-size: 3rem; margin-bottom: 16px;">🔍</div>
                     <h3>Nenhum item encontrado</h3>
                     <p>Tente ajustar os filtros ou o termo de busca.</p>
                 </div>`;
@@ -830,15 +828,15 @@
                 modalAudioBtn.style.display = 'none';
             }
             let html = '';
-            html += `<div class="detalhe-secao"><div class="detalhe-titulo"><i class="fas fa-info-circle"></i> Informações</div>`;
+            html += `<div class="detalhe-secao"><div class="detalhe-titulo">ℹ️ Informações</div>`;
             if (item.INDEX) html += `<div class="detalhe-valor mb-2"><strong>Tradução/Significado:</strong> ${item.INDEX}</div>`;
             if (item.CLASSE) html += `<div class="detalhe-valor mb-2"><strong>Classe Gramatical:</strong> ${item.CLASSE}</div>`;
             if (item.CAMPO_SEMANTICO) html += `<div class="detalhe-valor mb-2"><strong>Campo Semântico:</strong> ${item.CAMPO_SEMANTICO}</div>`;
             if (item.SUB_CAMPO_SEMANTICO) html += `<div class="detalhe-valor mb-2"><strong>Subcampo:</strong> ${item.SUB_CAMPO_SEMANTICO}</div>`;
             html += `</div>`;
-            
+
             if (item.FONEMICA || item.FONETICA) {
-                html += `<div class="detalhe-secao"><div class="detalhe-titulo"><i class="fas fa-waveform"></i> Pronúncia</div>`;
+                html += `<div class="detalhe-secao"><div class="detalhe-titulo">🔤 Pronúncia</div>`;
                 if (item.FONEMICA) html += `<div class="detalhe-valor mb-2"><strong>Fonêmica:</strong> ${item.FONEMICA}</div>`;
                 if (item.FONETICA) html += `<div class="detalhe-valor"><strong>Fonética:</strong> ${item.FONETICA}</div>`;
                 html += `</div>`;
@@ -846,13 +844,13 @@
             if (item.AUDIO) {
                 const audios = item.AUDIO.split('~').map(a => a.trim()).filter(Boolean);
                 if (audios.length > 1) {
-                    html += `<div class="detalhe-secao"><div class="detalhe-titulo"><i class="fas fa-volume-up"></i> Áudios adicionais</div>`;
-                    audios.slice(1).forEach(aud => { const src = resolverMidia(aud.trim(), 'audio'); html += `<button class="audio-btn" onclick="tocarAudio('${src}')"><i class="fas fa-play"></i> Ouvir</button>`; });
+                    html += `<div class="detalhe-secao"><div class="detalhe-titulo">🔊 Áudios adicionais</div>`;
+                    audios.slice(1).forEach(aud => { const src = resolverMidia(aud.trim(), 'audio'); html += `<button class="audio-btn" onclick="tocarAudio('${src}')">▶ Ouvir</button>`; });
                     html += `</div>`;
                 }
             }
             if (item.SIGNIFICADOS && item.SIGNIFICADOS.length > 0) {
-                html += `<div class="detalhe-secao"><div class="detalhe-titulo"><i class="fas fa-book"></i> Significados</div>`;
+                html += `<div class="detalhe-secao"><div class="detalhe-titulo">📖 Significados</div>`;
                 item.SIGNIFICADOS.forEach(sig => {
                     html += `<div class="exemplo-item" style="background:transparent; border:1px solid var(--cor-borda); padding:16px; margin-bottom:12px;">`;
                     if (sig.NUMERO) html += `<strong>${sig.NUMERO}. </strong>`;
@@ -902,12 +900,12 @@
             }
 
             if (item.ITENS_RELACIONADOS) {
-                html += `<div class="detalhe-secao"><div class="detalhe-titulo"><i class="fas fa-link"></i> Relacionados</div>`;
+                html += `<div class="detalhe-secao"><div class="detalhe-titulo">🔗 Relacionados</div>`;
                 html += `<div class="detalhe-valor">${item.ITENS_RELACIONADOS}</div></div>`;
             }
 
             if (item.TEXTOS_ESTRUTURADOS && item.TEXTOS_ESTRUTURADOS.length > 0) {
-                html += `<div class="detalhe-secao"><div class="detalhe-titulo"><i class="fas fa-paragraph"></i> Textos Adicionais</div>`;
+                html += `<div class="detalhe-secao"><div class="detalhe-titulo">¶ Textos Adicionais</div>`;
                 item.TEXTOS_ESTRUTURADOS.forEach(texto => {
                     if (texto.TITULO_BASE) html += `<h3 style="margin-bottom:12px; color:var(--cor-primaria); font-size:1.1rem;">${texto.TITULO_BASE}</h3>`;
                     
@@ -920,7 +918,7 @@
                                     if (frase.TRADUCAO) html += `<div class="texto-muted"><strong>Tradução:</strong> ${frase.TRADUCAO}</div>`;
                                     if (frase.AUDIO_ARQUIVO) {
                                         const src = resolverMidia(frase.AUDIO_ARQUIVO, 'audio');
-                                        html += `<button class="audio-btn" style="margin-top:6px;" onclick="tocarAudio('${src}')"><i class="fas fa-play"></i> Ouvir</button>`;
+                                        html += `<button class="audio-btn" style="margin-top:6px;" onclick="tocarAudio('${src}')">▶ Ouvir</button>`;
                                     }
                                     html += `</div>`;
                                 });

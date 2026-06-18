@@ -1,15 +1,15 @@
 <div class="entry-linear">
     <p class="linha-entrada">
-        <strong class="termo">{{ TERMO }}</strong>
-        {{#FONEMICA}}<span class="fonemica">/{{ FONEMICA }}/</span>{{/FONEMICA}}
+        <span class="termo">{{ TERMO }}</span>
+        {{#FONEMICA}}<span class="fonemica">  /{{ FONEMICA }}/</span>{{/FONEMICA}}
         {{#FONETICA}}<span class="fonetica">[{{ FONETICA }}]</span>{{/FONETICA}}
-        {{#CLASSE}}<em class="classe">{{ CLASSE }}</em>{{/CLASSE}}
+        {{#CLASSE}}<i class="classe"> {{ CLASSE }} </i>{{/CLASSE}}
     </p>
     
     {{#AUDIO}}
     <span class="audio-inline">
-        🔊 <audio controls style="display:inline-block;vertical-align:middle;height:22px;">
-            <source src="{{{ AUDIO }}}" type="audio/mpeg">
+        🔊 <audio controls style="display:inline-block;vertical-align:middle;height:22px;" data-src="{{{ AUDIO }}}">
+            <source data-src="{{{ AUDIO }}}" type="audio/mpeg">
         </audio>
     </span>
     {{/AUDIO}}
@@ -22,15 +22,15 @@
         
         {{#EXEMPLOS}}
         <span class="exemplo-inline">
-            {{#TRANS}}<em>"{{ TRANS }}"</em>{{/TRANS}}
-            {{#TRAD}} ({{ TRAD }}){{/TRAD}}
+            {{#TRANS}}<p style="margin-bottom: 0.1px;"><b><i>"{{ TRANS }}"</i></b></p>{{/TRANS}}
+            {{#TRAD}}<p>({{ TRAD }})</p>{{/TRAD}}
         </span>
         {{/EXEMPLOS}}
         
         {{#IMAGENS}}
         <figure class="figura-inline">
-            <img src="{{{ ARQUIVO }}}" alt="{{ LEGENDA }}" style="max-width:120px;max-height:80px;vertical-align:middle;">
-            {{#LEGENDA}}<figcaption style="display:inline;margin-left:6px;font-size:0.85em;">{{ LEGENDA }}</figcaption>{{/LEGENDA}}
+            <img data-src="{{{ ARQUIVO }}}" alt="{{ LEGENDA }}" class="clickable-image" onclick="openModal(this.src || this.getAttribute('data-src'))">
+            {{#LEGENDA}}<figcaption>{{ LEGENDA }}</figcaption>{{/LEGENDA}}
         </figure>
         {{/IMAGENS}}
         
@@ -41,8 +41,8 @@
     {{/SIGNIFICADOS}}
 
     {{#TEXTOS}}
-    <div class="textos-linear" style="display: block; margin-top: 10px; padding: 10px; background: #f4f6f8; border-radius: 4px; font-size: 0.95em;">
-        <strong style="color: #005A9C;">Texto: {{ TITULO_BASE }}</strong>
+    <div class="textos-linear">
+        <strong>Texto: {{ TITULO_BASE }}</strong>
         {{#TEXTO_NAO_LITERAL}}<br><em>{{{ TEXTO_NAO_LITERAL }}}</em>{{/TEXTO_NAO_LITERAL}}
         
         {{#VARIACOES}}
@@ -52,7 +52,7 @@
                 {{#TRADUCAO}}({{ TRADUCAO }}){{/TRADUCAO}}
                 
                 {{#AUDIO_ARQUIVO}}
-                <audio controls src="{{{ AUDIO_ARQUIVO }}}" style="height: 20px; vertical-align: middle; margin-left: 5px; max-width: 150px; outline: none; border-radius: 4px;"></audio>
+                <audio controls data-src="{{{ AUDIO_ARQUIVO }}}" style="height: 20px; vertical-align: middle; margin-left: 5px; max-width: 150px; outline: none; border-radius: 4px;"></audio>
                 {{/AUDIO_ARQUIVO}}
             </div>
             {{/FRASES}}
@@ -61,6 +61,6 @@
     {{/TEXTOS}}
     
     {{#ITENS_RELACIONADOS}}
-    <span class="relacionados-inline" style="display:block; margin-top:5px;">• {{ ITENS_RELACIONADOS }}</span>
+    <span class="relacionados-inline">• {{ ITENS_RELACIONADOS }}</span>
     {{/ITENS_RELACIONADOS}}
 </div>
