@@ -65,10 +65,14 @@ jobs:
         run: |
           NOME=$(node -e "const c=require('./dados/config.json'); process.stdout.write(c.nome || c.metadados?.titulo || 'Dicionario')")
           VERSAO=$(node -e "const c=require('./dados/config.json'); process.stdout.write(c.metadados?.versao || '1.0')")
-          PKG_BASE=$(echo "$NOME" | tr '[:upper:]' '[:lower:]' | iconv -f utf8 -t ascii//TRANSLIT 2>/dev/null | tr -cs 'a-z0-9' '_' | sed 's/^_*//;s/_*$//')
+          PKG=$(node -e "const c=require('./dados/config.json'); process.stdout.write(c.android?.packageName || '')")
+          if [ -z "$PKG" ]; then
+            PKG_BASE=$(echo "$NOME" | tr '[:upper:]' '[:lower:]' | iconv -f utf8 -t ascii//TRANSLIT 2>/dev/null | tr -cs 'a-z0-9' '_' | sed 's/^_*//;s/_*$//')
+            PKG="br.com.csv2dmli.${PKG_BASE:-dicionario}"
+          fi
           echo "nome=$NOME" >> "$GITHUB_OUTPUT"
           echo "versao=$VERSAO" >> "$GITHUB_OUTPUT"
-          echo "pkg=br.com.csv2dmli.${PKG_BASE:-dicionario}" >> "$GITHUB_OUTPUT"
+          echo "pkg=$PKG" >> "$GITHUB_OUTPUT"
 
       - name: Preparar keystore de assinatura
         run: |

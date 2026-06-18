@@ -435,7 +435,6 @@
                             <button class="export-btn export-typst" onclick="gerarExportacao('typst')"><span class="export-icon">📘</span><span class="export-label">Gerar Typst</span></button>
                             <button class="export-btn export-pdf" onclick="gerarExportacao('pdf')"><span class="export-icon">📑</span><span class="export-label">Gerar PDF</span></button>
                             <button class="export-btn export-android" onclick="abrirModalAndroid()"><span class="export-icon">📱</span><span class="export-label">Gerar Aplicativo</span></button>
-                            <button class="export-btn export-online" onclick="abrirModalGitHub()"><span class="export-icon">☁️</span><span class="export-label">Gerar Online (GitHub)</span></button>
                           </div>
                     </div>
                     
@@ -554,6 +553,7 @@
         <div>
           <div style="font-size:1.05em; font-weight:700; color:var(--primary);">Gerar Aplicativo Android</div>
           <div style="font-size:0.78em; color:var(--text-muted); margin-top:1px;">Gera .aab (Play Store) e .apk (instalação direta), assinados e prontos para publicação.</div>
+          <span id="apkModoBadge" style="display:inline-block; margin-top:4px; font-size:0.72em; font-weight:600; padding:2px 8px; border-radius:10px; background:#e0f2fe; color:#0369a1;"></span>
         </div>
       </div>
       <button onclick="fecharModalAndroid()" style="background:none;border:none;font-size:1.4em;cursor:pointer;color:var(--text-muted);line-height:1;padding:4px;">✕</button>
@@ -598,6 +598,24 @@
             <input id="apkPais" type="text" placeholder="BR" maxlength="2" style="text-transform:uppercase;">
           </div>
         </div>
+
+        <!-- Campos GitHub — visíveis apenas no modo online -->
+        <div id="apkGitHubFields" style="display:none; margin-top:18px; padding:14px 16px; background:#f0f9ff; border:1px solid #bae6fd; border-radius:10px;">
+          <p style="font-size:0.82em; color:#0369a1; margin:0 0 12px 0;">
+            Requer um <strong>Personal Access Token</strong> (escopo <code>repo</code> → Contents: Read &amp; write) com permissão para criar branches e releases.
+            O token é salvo apenas no seu navegador (localStorage).
+          </p>
+          <div class="apk-grid-2">
+            <div class="apk-field">
+              <label>Repositório (owner/repo) <span class="required">*</span></label>
+              <input id="ghRepo" type="text" placeholder="usuario/CSV2RMD-teste">
+            </div>
+            <div class="apk-field">
+              <label>Personal Access Token <span class="required">*</span></label>
+              <input id="ghToken" type="password" placeholder="ghp_xxxxxxxxxxxx">
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- PASSO 2 — Dados do Aplicativo -->
@@ -633,7 +651,7 @@
           </div>
         </div>
 
-        <div class="apk-field" style="margin-top:16px;">
+        <div id="apkPastaContainer" style="margin-top:16px;">
           <label>Diretório de Destino <span class="required">*</span></label>
           <div style="display:flex; gap:8px;">
             <input id="apkPastaSaida" type="text" placeholder="Escolha onde os arquivos serão salvos…" readonly style="flex:1;">
@@ -665,6 +683,17 @@
           <p>O Keystore é o certificado digital que autoriza a publicação e a atualização do aplicativo na Play Store.</p>
         </div>
 
+        <!-- Aviso modo online — oculto no modo local -->
+        <div id="apkKsOnlineNotice" style="display:none; margin-bottom:16px; padding:14px 16px; background:#f0fdf4; border:1px solid #86efac; border-radius:10px; font-size:0.86em; color:#166534;">
+          <strong>☁️ Assinatura automática via GitHub Actions</strong>
+          <p style="margin:6px 0 0 0;">No modo online, a assinatura é feita automaticamente pelo servidor.
+          Para garantir continuidade entre versões na Play Store, configure o secret
+          <code style="background:#dcfce7; padding:1px 5px; border-radius:4px;">ANDROID_KEYSTORE_BASE64</code>
+          no repositório GitHub.</p>
+        </div>
+
+        <!-- Configuração de keystore — oculto no modo online -->
+        <div id="apkKsLocalSection">
         <div class="apk-ks-block">
           <!-- Opção: gerar automaticamente -->
           <label class="apk-ks-option selected" id="apkLabelAutoKs">
@@ -726,6 +755,7 @@
             </div>
           </div>
         </div>
+        </div><!-- /apkKsLocalSection -->
       </div>
 
       <!-- PASSO 4 — Processamento e Resultados -->
@@ -744,9 +774,11 @@
           <div style="text-align:center; padding:28px 0 32px;">
             <div style="font-size:3.5em; margin-bottom:12px;">✅</div>
             <h2 style="color:var(--success); margin-bottom:8px;">Aplicativo gerado com sucesso!</h2>
-            <p style="color:var(--text-muted);">Os arquivos foram salvos no diretório escolhido.</p>
+            <p id="apkSucessoDesc" style="color:var(--text-muted);">Os arquivos foram salvos no diretório escolhido.</p>
           </div>
-          <div style="background:var(--bg-secondary); border-radius:12px; padding:20px; margin-bottom:24px;">
+
+          <!-- Resultado local: caminhos de arquivo -->
+          <div id="apkLocalResultados" style="background:var(--bg-secondary); border-radius:12px; padding:20px; margin-bottom:24px;">
             <div class="apk-result-row">
               <span style="font-size:1.5em;">📦</span>
               <div>
@@ -769,8 +801,15 @@
               </div>
             </div>
           </div>
+
+          <!-- Resultado online: links de download -->
+          <div id="apkOnlineResultados" style="display:none; margin-bottom:24px;">
+            <h3 style="font-size:0.95em; color:var(--success); margin-bottom:10px;">⬇️ Baixe os arquivos gerados:</h3>
+            <div id="apkOnlineDownloadLinks" style="display:flex; flex-direction:column; gap:8px;"></div>
+          </div>
+
           <div style="display:flex; gap:10px; justify-content:center;">
-            <button onclick="apkAbrirPasta()" class="btn btn-primary">📂 Abrir Pasta</button>
+            <button id="apkBtnAbrirPasta" onclick="apkAbrirPasta()" class="btn btn-primary">📂 Abrir Pasta</button>
             <button onclick="fecharModalAndroid()" class="btn btn-outline">Fechar</button>
           </div>
         </div>
@@ -799,53 +838,6 @@
   </div><!-- /apk-wizard-box -->
 </div><!-- /modalAndroid -->
 
-<!-- ========================================================
-     GERAR ONLINE VIA GITHUB ACTIONS
-======================================================== -->
-<div class="apk-wizard-overlay" id="modalGitHub" style="display:none;">
-  <div class="apk-wizard-box" style="max-width:680px; max-height:85vh; margin:auto; border-radius:12px;">
-
-    <div class="apk-wizard-header">
-      <div style="display:flex; align-items:center; gap:12px;">
-        <span style="font-size:1.6em;">☁️</span>
-        <div>
-          <div style="font-size:1.05em; font-weight:700; color:var(--primary);">Gerar Online via GitHub Actions</div>
-          <div style="font-size:0.78em; color:var(--text-muted); margin-top:1px;">Builda HTML + APK + AAB na nuvem, sem precisar do app desktop.</div>
-        </div>
-      </div>
-      <button onclick="fecharModalGitHub()" style="background:none;border:none;font-size:1.4em;cursor:pointer;color:var(--text-muted);line-height:1;padding:4px;">✕</button>
-    </div>
-
-    <div class="apk-wizard-body">
-      <div class="apk-step-intro">
-        <p>Requer um repositório GitHub com este projeto e um <strong>Personal Access Token</strong> (escopo <code>repo</code> / Contents: Read &amp; write) com permissão para criar branches e releases. O token fica salvo só no seu navegador (localStorage), nunca é enviado a nada além de <code>api.github.com</code>.</p>
-      </div>
-      <div class="apk-grid-2">
-        <div class="apk-field">
-          <label>Repositório (owner/repo) <span class="required">*</span></label>
-          <input id="ghRepo" type="text" placeholder="usuario/CSV2RMD-teste">
-        </div>
-        <div class="apk-field">
-          <label>Personal Access Token <span class="required">*</span></label>
-          <input id="ghToken" type="password" placeholder="ghp_xxxxxxxxxxxx">
-        </div>
-      </div>
-
-      <div id="ghStatusLog" style="margin-top:18px; background:#0f172a; color:#e2e8f0; font-family:monospace; font-size:0.82em; padding:14px; border-radius:8px; max-height:260px; overflow-y:auto; white-space:pre-wrap; display:none;"></div>
-
-      <div id="ghDownloads" style="margin-top:16px; display:none;">
-        <h3 style="font-size:0.95em; color:var(--success); margin-bottom:8px;">✅ Pronto! Baixe os arquivos:</h3>
-        <div id="ghDownloadLinks" style="display:flex; flex-direction:column; gap:6px;"></div>
-      </div>
-    </div>
-
-    <div class="apk-wizard-footer">
-      <button onclick="fecharModalGitHub()" class="btn btn-secondary">Fechar</button>
-      <button id="ghBtnDisparar" onclick="window.ghDispararGeracao()" class="btn btn-primary">🚀 Disparar geração</button>
-    </div>
-
-  </div>
-</div>
 
 <div class="modal-overlay" id="modalOverlay">
     <div class="modal-box" id="modalBox" style="display: flex; flex-direction: column; max-height: 90vh; overflow: hidden;">
@@ -1737,13 +1729,19 @@
                 { alert('Informe o Nome / Responsável.'); return false; }
             if (!document.getElementById('apkOrganizacao').value.trim())
                 { alert('Informe a Organização.'); return false; }
+            if (_apkEhOnline) {
+                const repo = document.getElementById('ghRepo').value.trim();
+                const tok  = document.getElementById('ghToken').value.trim();
+                if (!repo || !repo.includes('/')) { alert('Informe o repositório no formato owner/repo.'); return false; }
+                if (!tok) { alert('Informe o Personal Access Token.'); return false; }
+            }
             apkAtualizarPackageName();
             return true;
         }
         if (passo === 2) {
             if (!document.getElementById('apkNomeApp').value.trim())
                 { alert('Informe o Nome do Aplicativo.'); return false; }
-            if (!document.getElementById('apkPastaSaida').value.trim())
+            if (!_apkEhOnline && !document.getElementById('apkPastaSaida').value.trim())
                 { alert('Escolha o Diretório de Destino.'); return false; }
             return true;
         }
@@ -1760,129 +1758,17 @@
     };
 
     window.apkGerarAplicativo = async function() {
-        const invoke = window.__TAURI__.core.invoke;
-
-        const nomeResponsavel = document.getElementById('apkNomeResponsavel').value.trim();
-        const organizacao     = document.getElementById('apkOrganizacao').value.trim();
-        const cidade          = document.getElementById('apkCidade').value.trim();
-        const estado          = document.getElementById('apkEstado').value.trim();
-        const pais            = (document.getElementById('apkPais').value.trim() || 'BR').toUpperCase();
-
-        const nomeApp      = document.getElementById('apkNomeApp').value.trim();
-        const pasta        = document.getElementById('apkPastaSaida').value.trim();
-        const embutirMidias = document.getElementById('apkEmbutirMidias').checked;
-
-        const modo = document.querySelector('input[name="apkKsMode"]:checked')?.value || 'auto';
-        let ksPath = '', storePass = '', alias = 'upload', keyPass = '';
-
-        if (modo === 'auto') {
-            alias     = document.getElementById('apkAutoAlias').value.trim() || 'upload';
-            storePass = document.getElementById('apkAutoSenha').value;
-            const confirmar = document.getElementById('apkAutoSenhaConfirm').value;
-            if (storePass.length < 6) return alert('A senha deve ter pelo menos 6 caracteres.');
-            if (storePass !== confirmar) return alert('As senhas não coincidem.');
-            keyPass = storePass;
-        } else {
-            ksPath    = document.getElementById('apkKsArquivo').value.trim();
-            alias     = document.getElementById('apkKsAlias').value.trim() || 'upload';
-            storePass = document.getElementById('apkKsSenha').value;
-            keyPass   = document.getElementById('apkKsSenhaChave').value || storePass;
-            if (!ksPath)    return alert('Selecione o arquivo keystore.');
-            if (!storePass) return alert('Informe a senha do keystore.');
-        }
-
-        // Avança para a tela de processamento
         apkIrParaPasso(4);
         document.getElementById('apkProcessando').style.display = 'block';
         document.getElementById('apkSucesso').style.display     = 'none';
         document.getElementById('apkErro').style.display        = 'none';
 
-        const progEl = document.getElementById('apkProgressSteps');
-        progEl.innerHTML = `
-            <div class="apk-prog-step pending" id="apkPS1">⬜ Verificando Java…</div>
-            <div class="apk-prog-step pending" id="apkPS2">⬜ Gerando HTML do dicionário…</div>
-            <div class="apk-prog-step pending" id="apkPS3">⬜ Compilando e assinando APK…</div>
-            <div class="apk-prog-step pending" id="apkPS4">⬜ Finalizando…</div>
-        `;
-
         try {
-            // 1. Verificar Java
-            apkSetProg('apkPS1', 'running', 'Verificando Java…');
-            await invoke('verificar_java');
-            apkSetProg('apkPS1', 'done', 'Java verificado ✓');
-
-            // 2. Gerar HTML
-            apkSetProg('apkPS2', 'running', 'Gerando HTML do dicionário…');
-            document.getElementById('apkStatusDesc').textContent =
-                embutirMidias ? 'Embutindo mídias no HTML (pode levar alguns segundos)…'
-                              : 'Gerando HTML com mídias separadas…';
-
-            const selectWizard = document.getElementById('templateExportacaoSelect');
-            const formato = selectWizard ? selectWizard.value : 'linear';
-
-            let htmlDicionario;
-            let midiasExtras = null;
-
-            if (embutirMidias) {
-                htmlDicionario = formato === 'card'
-                    ? await window.exportador.exportarHtmlCards({ embutirMidias: true })
-                    : await window.exportador.exportarHtmlLinear({ embutirMidias: true });
+            if (_apkEhOnline) {
+                await _apkGerarOnline();
             } else {
-                // HTML com caminhos relativos + mídias como arquivos separados no AAB
-                htmlDicionario = formato === 'card'
-                    ? await window.exportador.exportarHtmlCards({ embutirMidias: false })
-                    : await window.exportador.exportarHtmlLinear({ embutirMidias: false });
-
-                midiasExtras = {};
-                const tipos = ['audio', 'imagem', 'video'];
-                for (const tipo of tipos) {
-                    const dirName = tipo === 'imagem' ? 'foto' : tipo;
-                    const nomes   = window.sistema.vfs.obterTodosNomes(tipo);
-                    const arqs    = window.sistema.vfs.obterTodosArquivos(tipo);
-                    for (let i = 0; i < nomes.length; i++) {
-                        const buf = await arqs[i].arrayBuffer();
-                        midiasExtras[`${dirName}/${nomes[i]}`] = Array.from(new Uint8Array(buf));
-                    }
-                }
+                await _apkGerarLocal();
             }
-            apkSetProg('apkPS2', 'done', 'HTML gerado ✓');
-
-            // 3. Compilar APK
-            apkSetProg('apkPS3', 'running', 'Compilando e assinando APK…');
-            document.getElementById('apkStatusDesc').textContent =
-                'Injetando dicionário no AAB e assinando com bundletool…';
-
-            const versaoStr = document.getElementById('apkVersao')?.value.trim() || '1.0';
-            const resultado = await invoke('gerar_aplicativo', {
-                html:             htmlDicionario,
-                nomeApp:          nomeApp,
-                pastaSaida:       pasta,
-                keystorePath:     ksPath,
-                storePass:        storePass,
-                keyAlias:         alias,
-                keyPass:          keyPass,
-                nomeResponsavel:  nomeResponsavel,
-                organizacao:      organizacao,
-                cidade:           cidade,
-                estado:           estado,
-                pais:             pais,
-                iconeBytes:       _apkIconeBytes,
-                midiasExtras:     midiasExtras,
-                packageName:      document.getElementById('apkPackageName')?.value.trim() || null,
-                versionName:      versaoStr || null,
-                versionCode:      parseVersionCode(versaoStr),
-            });
-            apkSetProg('apkPS3', 'done', 'APK compilado e assinado ✓');
-            apkSetProg('apkPS4', 'done', 'Concluído ✓');
-
-            _apkResultadoPasta = pasta;
-            document.getElementById('apkResultAab').textContent      = resultado.aab;
-            document.getElementById('apkResultApk').textContent      = resultado.apk;
-            document.getElementById('apkResultKeystore').textContent = resultado.keystore;
-
-            document.getElementById('apkProcessando').style.display = 'none';
-            document.getElementById('apkSucesso').style.display     = 'block';
-
         } catch (err) {
             const msg = typeof err === 'string' ? err : (err.message || JSON.stringify(err));
             adicionarLogAoTerminal('Erro ao gerar APK: ' + msg, 'error');
@@ -1893,6 +1779,184 @@
         }
     };
 
+    async function _apkGerarLocal() {
+        const invoke = window.__TAURI__.core.invoke;
+
+        const nomeResponsavel = document.getElementById('apkNomeResponsavel').value.trim();
+        const organizacao     = document.getElementById('apkOrganizacao').value.trim();
+        const cidade          = document.getElementById('apkCidade').value.trim();
+        const estado          = document.getElementById('apkEstado').value.trim();
+        const pais            = (document.getElementById('apkPais').value.trim() || 'BR').toUpperCase();
+        const nomeApp         = document.getElementById('apkNomeApp').value.trim();
+        const pasta           = document.getElementById('apkPastaSaida').value.trim();
+        const embutirMidias   = document.getElementById('apkEmbutirMidias').checked;
+
+        const modo = document.querySelector('input[name="apkKsMode"]:checked')?.value || 'auto';
+        let ksPath = '', storePass = '', alias = 'upload', keyPass = '';
+
+        if (modo === 'auto') {
+            alias     = document.getElementById('apkAutoAlias').value.trim() || 'upload';
+            storePass = document.getElementById('apkAutoSenha').value;
+            const confirmar = document.getElementById('apkAutoSenhaConfirm').value;
+            if (storePass.length < 6) { alert('A senha deve ter pelo menos 6 caracteres.'); throw new Error('Senha inválida'); }
+            if (storePass !== confirmar) { alert('As senhas não coincidem.'); throw new Error('Senhas não coincidem'); }
+            keyPass = storePass;
+        } else {
+            ksPath    = document.getElementById('apkKsArquivo').value.trim();
+            alias     = document.getElementById('apkKsAlias').value.trim() || 'upload';
+            storePass = document.getElementById('apkKsSenha').value;
+            keyPass   = document.getElementById('apkKsSenhaChave').value || storePass;
+            if (!ksPath)    { alert('Selecione o arquivo keystore.'); throw new Error('Keystore não selecionado'); }
+            if (!storePass) { alert('Informe a senha do keystore.'); throw new Error('Senha não informada'); }
+        }
+
+        const progEl = document.getElementById('apkProgressSteps');
+        progEl.style.cssText = '';
+        progEl.innerHTML = `
+            <div class="apk-prog-step pending" id="apkPS1">⬜ Verificando Java…</div>
+            <div class="apk-prog-step pending" id="apkPS2">⬜ Gerando HTML do dicionário…</div>
+            <div class="apk-prog-step pending" id="apkPS3">⬜ Compilando e assinando APK…</div>
+            <div class="apk-prog-step pending" id="apkPS4">⬜ Finalizando…</div>
+        `;
+
+        apkSetProg('apkPS1', 'running', 'Verificando Java…');
+        await invoke('verificar_java');
+        apkSetProg('apkPS1', 'done', 'Java verificado ✓');
+
+        apkSetProg('apkPS2', 'running', 'Gerando HTML do dicionário…');
+        document.getElementById('apkStatusDesc').textContent =
+            embutirMidias ? 'Embutindo mídias no HTML (pode levar alguns segundos)…'
+                          : 'Gerando HTML com mídias separadas…';
+
+        const selectWizard = document.getElementById('templateExportacaoSelect');
+        const formato = selectWizard ? selectWizard.value : 'linear';
+        let htmlDicionario, midiasExtras = null;
+
+        if (embutirMidias) {
+            htmlDicionario = formato === 'card'
+                ? await window.exportador.exportarHtmlCards({ embutirMidias: true })
+                : await window.exportador.exportarHtmlLinear({ embutirMidias: true });
+        } else {
+            htmlDicionario = formato === 'card'
+                ? await window.exportador.exportarHtmlCards({ embutirMidias: false })
+                : await window.exportador.exportarHtmlLinear({ embutirMidias: false });
+            midiasExtras = {};
+            for (const tipo of ['audio', 'imagem', 'video']) {
+                const dirName = tipo === 'imagem' ? 'foto' : tipo;
+                const nomes   = window.sistema.vfs.obterTodosNomes(tipo);
+                const arqs    = window.sistema.vfs.obterTodosArquivos(tipo);
+                for (let i = 0; i < nomes.length; i++) {
+                    const buf = await arqs[i].arrayBuffer();
+                    midiasExtras[`${dirName}/${nomes[i]}`] = Array.from(new Uint8Array(buf));
+                }
+            }
+        }
+        apkSetProg('apkPS2', 'done', 'HTML gerado ✓');
+
+        apkSetProg('apkPS3', 'running', 'Compilando e assinando APK…');
+        document.getElementById('apkStatusDesc').textContent = 'Injetando dicionário no AAB e assinando com bundletool…';
+
+        const versaoStr = document.getElementById('apkVersao')?.value.trim() || '1.0';
+        const resultado = await invoke('gerar_aplicativo', {
+            html: htmlDicionario, nomeApp, pastaSaida: pasta,
+            keystorePath: ksPath, storePass, keyAlias: alias, keyPass,
+            nomeResponsavel, organizacao, cidade, estado, pais,
+            iconeBytes: _apkIconeBytes, midiasExtras,
+            packageName: document.getElementById('apkPackageName')?.value.trim() || null,
+            versionName: versaoStr || null,
+            versionCode: parseVersionCode(versaoStr),
+        });
+        apkSetProg('apkPS3', 'done', 'APK compilado e assinado ✓');
+        apkSetProg('apkPS4', 'done', 'Concluído ✓');
+
+        _apkResultadoPasta = pasta;
+        document.getElementById('apkResultAab').textContent      = resultado.aab;
+        document.getElementById('apkResultApk').textContent      = resultado.apk;
+        document.getElementById('apkResultKeystore').textContent = resultado.keystore;
+        document.getElementById('apkLocalResultados').style.display  = 'block';
+        document.getElementById('apkOnlineResultados').style.display = 'none';
+        document.getElementById('apkBtnAbrirPasta').style.display    = '';
+        document.getElementById('apkSucessoDesc').textContent = 'Os arquivos foram salvos no diretório escolhido.';
+        document.getElementById('apkProcessando').style.display = 'none';
+        document.getElementById('apkSucesso').style.display     = 'block';
+    }
+
+    async function _apkGerarOnline() {
+        const repoSlug = document.getElementById('ghRepo').value.trim();
+        const token    = document.getElementById('ghToken').value.trim();
+        localStorage.setItem('csv2dmli_gh_repo',  repoSlug);
+        localStorage.setItem('csv2dmli_gh_token', token);
+
+        const cp = window.carregadorPasta;
+        if (!cp || !cp.arquivosEncontrados || !cp.arquivosEncontrados.planilha)
+            throw new Error('Carregue uma planilha/pasta de dados primeiro (passo de importação).');
+
+        const progEl = document.getElementById('apkProgressSteps');
+        progEl.style.cssText = 'font-family:monospace; font-size:0.82em; background:#0f172a; color:#e2e8f0; padding:12px 14px; border-radius:8px; max-height:200px; overflow-y:auto;';
+        progEl.innerHTML = '';
+        document.getElementById('apkStatusTitle').textContent = 'Enviando para o GitHub Actions…';
+        document.getElementById('apkStatusDesc').textContent  = 'O dicionário está sendo processado na nuvem. Isso pode levar alguns minutos.';
+
+        const [owner, repo] = repoSlug.split('/');
+        const base    = `https://api.github.com/repos/${owner}/${repo}`;
+        const headers = { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' };
+
+        ghLog('📦 Coletando arquivos do dicionário...');
+        const arquivos = [];
+        arquivos.push({ caminho: 'dados/dicionario.csv', conteudo: await ghLerComoBase64(cp.arquivosEncontrados.planilha) });
+        for (const f of cp.arquivosEncontrados.audio  || []) arquivos.push({ caminho: `dados/midias/audio/${f.name}`,  conteudo: await ghLerComoBase64(f) });
+        for (const f of cp.arquivosEncontrados.imagem || []) arquivos.push({ caminho: `dados/midias/imagem/${f.name}`, conteudo: await ghLerComoBase64(f) });
+        for (const f of cp.arquivosEncontrados.video  || []) arquivos.push({ caminho: `dados/midias/video/${f.name}`,  conteudo: await ghLerComoBase64(f) });
+
+        const config = window.configurador ? window.configurador.getConfig() : {};
+        const nomeApp    = document.getElementById('apkNomeApp').value.trim();
+        const versaoStr  = document.getElementById('apkVersao')?.value.trim() || '1.0';
+        const packageName = document.getElementById('apkPackageName')?.value.trim() || '';
+        config.nome = config.nome || nomeApp;
+        config.metadados = config.metadados || {};
+        config.metadados.titulo  = config.metadados.titulo  || nomeApp;
+        config.metadados.versao  = versaoStr;
+        if (packageName) { config.android = config.android || {}; config.android.packageName = packageName; }
+        arquivos.push({ caminho: 'dados/config.json', conteudo: btoa(unescape(encodeURIComponent(JSON.stringify(config, null, 2)))) });
+
+        if (_apkIconeBytes.length > 0) {
+            let bin = ''; const chunk = 0x8000;
+            for (let i = 0; i < _apkIconeBytes.length; i += chunk)
+                bin += String.fromCharCode.apply(null, _apkIconeBytes.slice(i, i + chunk));
+            arquivos.push({ caminho: 'dados/icone.png', conteudo: btoa(bin) });
+        }
+
+        ghLog(`   ${arquivos.length} arquivo(s) prontos para envio.`);
+
+        ghLog('🔍 Lendo último commit de main...');
+        const refMain     = await ghApi(base, headers, '/git/ref/heads/main', 'GET');
+        const baseSha     = refMain.object.sha;
+        const baseCommit  = await ghApi(base, headers, `/git/commits/${baseSha}`, 'GET');
+        const baseTreeSha = baseCommit.tree.sha;
+
+        ghLog('⬆️ Enviando arquivos (blobs)...');
+        const treeItems = [];
+        for (const a of arquivos) {
+            const blob = await ghApi(base, headers, '/git/blobs', 'POST', { content: a.conteudo, encoding: 'base64' });
+            treeItems.push({ path: a.caminho, mode: '100644', type: 'blob', sha: blob.sha });
+            ghLog(`   ✓ ${a.caminho}`);
+        }
+
+        ghLog('🌳 Criando árvore e commit...');
+        const novaTree  = await ghApi(base, headers, '/git/trees',   'POST', { base_tree: baseTreeSha, tree: treeItems });
+        const novoCommit = await ghApi(base, headers, '/git/commits', 'POST', {
+            message: `Gerar dicionário via wizard (${new Date().toLocaleString('pt-BR')})`,
+            tree: novaTree.sha, parents: [baseSha]
+        });
+
+        const branch = `gerar/${Date.now()}`;
+        ghLog(`🚀 Criando branch ${branch} (dispara o workflow)...`);
+        await ghApi(base, headers, '/git/refs', 'POST', { ref: `refs/heads/${branch}`, sha: novoCommit.sha });
+        ghLog('✅ Disparado! Acompanhando build (isso pode levar alguns minutos)...');
+
+        await ghPollAteCompletar(base, headers, owner, repo, branch);
+    }
+
     window.apkAbrirPasta = async function() {
         if (!_apkResultadoPasta) return;
         try {
@@ -1902,10 +1966,13 @@
         }
     };
 
+    // true quando rodando no navegador (GitHub Pages), false no app Tauri desktop
+    let _apkEhOnline = false;
+
     window.abrirModalAndroid = async function() {
-        const isTauri = !!(window.__TAURI__ && window.__TAURI__.core);
-        if (!isTauri) return alert('Exportação Android disponível apenas no app desktop.');
         if (!window.exportador) return alert('Exportador não inicializado!');
+
+        _apkEhOnline = !(window.__TAURI__ && window.__TAURI__.core);
 
         // Resetar estado
         _apkIconeBytes     = [];
@@ -1915,6 +1982,28 @@
         document.getElementById('apkProcessando').style.display     = 'block';
         document.getElementById('apkSucesso').style.display         = 'none';
         document.getElementById('apkErro').style.display            = 'none';
+
+        // Badge de modo
+        const badge = document.getElementById('apkModoBadge');
+        if (_apkEhOnline) {
+            badge.textContent = '☁️ Online (GitHub Actions)';
+            badge.style.background = '#e0f2fe'; badge.style.color = '#0369a1';
+        } else {
+            badge.textContent = '💻 Local (Desktop)';
+            badge.style.background = '#f0fdf4'; badge.style.color = '#166534';
+        }
+
+        // Mostrar/ocultar seções dependentes do modo
+        document.getElementById('apkGitHubFields').style.display   = _apkEhOnline ? 'block' : 'none';
+        document.getElementById('apkPastaContainer').style.display = _apkEhOnline ? 'none'  : 'block';
+        document.getElementById('apkKsOnlineNotice').style.display = _apkEhOnline ? 'block' : 'none';
+        document.getElementById('apkKsLocalSection').style.display = _apkEhOnline ? 'none'  : 'block';
+
+        // Pré-preencher campos GitHub (modo online)
+        if (_apkEhOnline) {
+            document.getElementById('ghRepo').value  = localStorage.getItem('csv2dmli_gh_repo')  || '';
+            document.getElementById('ghToken').value = localStorage.getItem('csv2dmli_gh_token') || '';
+        }
 
         // Pré-preencher nome do app
         const nomeDic = document.getElementById('metaHtml')?.value
@@ -1927,12 +2016,14 @@
         const swMidia = document.getElementById('swMidia');
         if (swMidia) document.getElementById('apkEmbutirMidias').checked = swMidia.checked;
 
-        // Carregar caminho do keystore
-        try {
-            const caminho = await window.__TAURI__.core.invoke('caminho_keystore_auto');
-            document.getElementById('apkKsPathLabel').textContent = 'Arquivo: ' + caminho;
-        } catch(_) {
-            document.getElementById('apkKsPathLabel').textContent = 'Arquivo: (pasta AppData)';
+        // Carregar caminho do keystore (apenas local)
+        if (!_apkEhOnline) {
+            try {
+                const caminho = await window.__TAURI__.core.invoke('caminho_keystore_auto');
+                document.getElementById('apkKsPathLabel').textContent = 'Arquivo: ' + caminho;
+            } catch(_) {
+                document.getElementById('apkKsPathLabel').textContent = 'Arquivo: (pasta AppData)';
+            }
         }
 
         apkIrParaPasso(1);
@@ -1952,9 +2043,10 @@
     // ========================================================
 
     function ghLog(msg) {
-        const el = document.getElementById('ghStatusLog');
-        el.style.display = 'block';
-        el.textContent += msg + '\n';
+        const el = document.getElementById('apkProgressSteps');
+        const line = document.createElement('div');
+        line.textContent = msg;
+        el.appendChild(line);
         el.scrollTop = el.scrollHeight;
     }
 
@@ -1967,11 +2059,6 @@
             binary += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK));
         }
         return btoa(binary);
-    }
-
-    function ghApiBase() {
-        const [owner, repo] = document.getElementById('ghRepo').value.trim().split('/');
-        return { owner, repo, base: `https://api.github.com/repos/${owner}/${repo}` };
     }
 
     async function ghApi(base, headers, caminho, method, body) {
@@ -1987,100 +2074,10 @@
         return res.json();
     }
 
-    window.abrirModalGitHub = function() {
-        document.getElementById('ghRepo').value  = localStorage.getItem('csv2dmli_gh_repo')  || '';
-        document.getElementById('ghToken').value = localStorage.getItem('csv2dmli_gh_token') || '';
-        document.getElementById('ghStatusLog').style.display   = 'none';
-        document.getElementById('ghStatusLog').textContent     = '';
-        document.getElementById('ghDownloads').style.display   = 'none';
-        document.getElementById('ghBtnDisparar').disabled       = false;
-        document.getElementById('modalGitHub').style.display   = 'flex';
-    };
-
-    window.fecharModalGitHub = function() {
-        document.getElementById('modalGitHub').style.display = 'none';
-    };
-
-    window.ghDispararGeracao = async function() {
-        const repoSlug = document.getElementById('ghRepo').value.trim();
-        const token    = document.getElementById('ghToken').value.trim();
-        if (!repoSlug || !repoSlug.includes('/')) return alert('Informe o repositório no formato owner/repo.');
-        if (!token) return alert('Informe o Personal Access Token.');
-        localStorage.setItem('csv2dmli_gh_repo', repoSlug);
-        localStorage.setItem('csv2dmli_gh_token', token);
-
-        const cp = window.carregadorPasta;
-        if (!cp || !cp.arquivosEncontrados || !cp.arquivosEncontrados.planilha) {
-            return alert('Carregue uma planilha/pasta de dados primeiro (passo de importação).');
-        }
-
-        document.getElementById('ghBtnDisparar').disabled = true;
-        document.getElementById('ghDownloads').style.display = 'none';
-        document.getElementById('ghStatusLog').textContent = '';
-        document.getElementById('ghStatusLog').style.display = 'block';
-
-        try {
-            const { owner, repo, base } = ghApiBase();
-            const headers = {
-                Authorization: `Bearer ${token}`,
-                Accept: 'application/vnd.github+json'
-            };
-
-            ghLog('📦 Coletando arquivos do dicionário...');
-            const arquivos = [];
-            arquivos.push({ caminho: 'dados/dicionario.csv', conteudo: await ghLerComoBase64(cp.arquivosEncontrados.planilha) });
-            for (const f of cp.arquivosEncontrados.audio  || []) arquivos.push({ caminho: `dados/midias/audio/${f.name}`,  conteudo: await ghLerComoBase64(f) });
-            for (const f of cp.arquivosEncontrados.imagem || []) arquivos.push({ caminho: `dados/midias/imagem/${f.name}`, conteudo: await ghLerComoBase64(f) });
-            for (const f of cp.arquivosEncontrados.video  || []) arquivos.push({ caminho: `dados/midias/video/${f.name}`,  conteudo: await ghLerComoBase64(f) });
-
-            const config = window.configurador ? window.configurador.getConfig() : {};
-            const nomeApp = document.getElementById('metaHtml')?.value || window.exportador?.nomeDicionario || 'Dicionario';
-            config.nome = config.nome || nomeApp;
-            config.metadados = config.metadados || {};
-            config.metadados.titulo = config.metadados.titulo || nomeApp;
-            const configJsonStr = JSON.stringify(config, null, 2);
-            arquivos.push({ caminho: 'dados/config.json', conteudo: btoa(unescape(encodeURIComponent(configJsonStr))) });
-
-            ghLog(`   ${arquivos.length} arquivo(s) prontos para envio.`);
-
-            ghLog('🔍 Lendo último commit de main...');
-            const refMain = await ghApi(base, headers, '/git/ref/heads/main', 'GET');
-            const baseSha = refMain.object.sha;
-            const baseCommit = await ghApi(base, headers, `/git/commits/${baseSha}`, 'GET');
-            const baseTreeSha = baseCommit.tree.sha;
-
-            ghLog('⬆️ Enviando arquivos (blobs)...');
-            const treeItems = [];
-            for (const a of arquivos) {
-                const blob = await ghApi(base, headers, '/git/blobs', 'POST', { content: a.conteudo, encoding: 'base64' });
-                treeItems.push({ path: a.caminho, mode: '100644', type: 'blob', sha: blob.sha });
-                ghLog(`   ✓ ${a.caminho}`);
-            }
-
-            ghLog('🌳 Criando árvore e commit...');
-            const novaTree = await ghApi(base, headers, '/git/trees', 'POST', { base_tree: baseTreeSha, tree: treeItems });
-            const novoCommit = await ghApi(base, headers, '/git/commits', 'POST', {
-                message: `Gerar dicionário via wizard (${new Date().toLocaleString('pt-BR')})`,
-                tree: novaTree.sha,
-                parents: [baseSha]
-            });
-
-            const branch = `gerar/${Date.now()}`;
-            ghLog(`🚀 Criando branch ${branch} (dispara o workflow)...`);
-            await ghApi(base, headers, '/git/refs', 'POST', { ref: `refs/heads/${branch}`, sha: novoCommit.sha });
-
-            ghLog('✅ Disparado! Acompanhando build (isso pode levar alguns minutos)...');
-            await ghPollAteCompletar(base, headers, owner, repo, branch);
-
-        } catch (err) {
-            ghLog('❌ Erro: ' + (err.message || err));
-            document.getElementById('ghBtnDisparar').disabled = false;
-        }
-    };
 
     async function ghPollAteCompletar(base, headers, owner, repo, branch) {
         const inicio = Date.now();
-        const MAX_TENTATIVAS = 80;       // ~20 minutos (15s entre tentativas)
+        const MAX_TENTATIVAS = 80;
         const INTERVALO_MS   = 15000;
 
         for (let tentativa = 0; tentativa < MAX_TENTATIVAS; tentativa++) {
@@ -2090,15 +2087,10 @@
                 const run = runs.workflow_runs && runs.workflow_runs[0];
                 if (!run) { ghLog('   ⏳ Aguardando o workflow iniciar...'); continue; }
 
-                if (run.status !== 'completed') {
-                    ghLog(`   ⏳ Status: ${run.status}...`);
-                    continue;
-                }
+                if (run.status !== 'completed') { ghLog(`   ⏳ Status: ${run.status}...`); continue; }
 
                 if (run.conclusion !== 'success') {
-                    ghLog(`❌ Build terminou com falha (${run.conclusion}). Veja: ${run.html_url}`);
-                    document.getElementById('ghBtnDisparar').disabled = false;
-                    return;
+                    throw new Error(`Build terminou com falha (${run.conclusion}). Veja: ${run.html_url}`);
                 }
 
                 ghLog('🔎 Build concluído! Procurando a Release com os arquivos...');
@@ -2108,26 +2100,25 @@
 
                 ghLog(`✅ Pronto: ${release.name}`);
                 ghMostrarDownloads(release);
-                document.getElementById('ghBtnDisparar').disabled = false;
                 return;
 
             } catch (e) {
-                ghLog('   (falha temporária ao consultar status, tentando de novo: ' + e.message + ')');
+                if (e.message && e.message.startsWith('Build terminou')) throw e;
+                ghLog('   (falha temporária ao consultar status: ' + e.message + ')');
             }
         }
-        ghLog('⏱️ Tempo esgotado aguardando o build. Verifique manualmente na aba Actions/Releases do repositório.');
-        document.getElementById('ghBtnDisparar').disabled = false;
+        throw new Error('Tempo esgotado aguardando o build. Verifique manualmente na aba Actions/Releases do repositório.');
     }
 
     function ghMostrarDownloads(release) {
-        const box = document.getElementById('ghDownloadLinks');
+        const box = document.getElementById('apkOnlineDownloadLinks');
         box.innerHTML = '';
         (release.assets || []).forEach(asset => {
             const a = document.createElement('a');
             a.href = asset.browser_download_url;
             a.target = '_blank';
             a.textContent = `⬇️ ${asset.name}`;
-            a.style.cssText = 'padding:8px 12px; background:var(--primary-light); border-radius:6px; color:var(--primary); font-weight:600; text-decoration:none;';
+            a.style.cssText = 'padding:8px 12px; background:var(--primary-light,#e0f2fe); border-radius:6px; color:var(--primary,#0369a1); font-weight:600; text-decoration:none;';
             box.appendChild(a);
         });
         const linkRelease = document.createElement('a');
@@ -2136,7 +2127,13 @@
         linkRelease.textContent = 'Ver Release completa no GitHub →';
         linkRelease.style.cssText = 'font-size:0.85em; color:var(--text-muted); margin-top:4px;';
         box.appendChild(linkRelease);
-        document.getElementById('ghDownloads').style.display = 'block';
+
+        document.getElementById('apkLocalResultados').style.display  = 'none';
+        document.getElementById('apkOnlineResultados').style.display = 'block';
+        document.getElementById('apkBtnAbrirPasta').style.display    = 'none';
+        document.getElementById('apkSucessoDesc').textContent = 'O aplicativo foi gerado na nuvem e está disponível para download.';
+        document.getElementById('apkProcessando').style.display = 'none';
+        document.getElementById('apkSucesso').style.display     = 'block';
     }
 
     iniciar();
