@@ -14,6 +14,8 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
 
     steps:
       - uses: actions/checkout@v4
@@ -34,7 +36,17 @@ jobs:
           distribution: temurin
           java-version: 21
 
+      - name: Cache Android SDK (platforms + build-tools)
+        id: cache-android-sdk
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.ANDROID_HOME }}/platforms/android-34
+            ${{ env.ANDROID_HOME }}/build-tools/34.0.0
+          key: android-sdk-34-bt-34.0.0
+
       - name: Instalar Android SDK platform + build-tools
+        if: steps.cache-android-sdk.outputs.cache-hit != 'true'
         run: |
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
             "platforms;android-34" \
@@ -45,17 +57,47 @@ jobs:
         with:
           gradle-version: "8.13"
 
+      - name: Cache android-template APK (classes.dex — muda so se MainActivity mudar)
+        id: cache-template
+        uses: actions/cache@v4
+        with:
+          path: android-template/app/build/outputs
+          key: ${{ runner.os }}-android-template-${{ hashFiles('android-template/**') }}
+
       - name: Build android-template (classes.dex fixo, nunca recompilado por dicionario)
+        if: steps.cache-template.outputs.cache-hit != 'true'
         working-directory: android-template
         run: gradle assembleRelease
 
+      - name: Cache bundletool.jar
+        id: cache-bundletool
+        uses: actions/cache@v4
+        with:
+          path: bundletool.jar
+          key: bundletool-1.18.1
+
       - name: Baixar bundletool.jar
+        if: steps.cache-bundletool.outputs.cache-hit != 'true'
         run: curl -fL "https://github.com/google/bundletool/releases/download/1.18.1/bundletool-all-1.18.1.jar" -o bundletool.jar
 
-      - name: Descompactar payload.zip
+      - name: Cache Cargo (registry + target/)
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            src-tauri/target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('src-tauri/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Descompactar payload(s)
         run: |
           mkdir -p dist/bundle
-          unzip -o dados/payload.zip -d dist/bundle
+          for zip in dados/payload*.zip; do
+            [ -f "$zip" ] && unzip -o "$zip" -d dist/bundle
+          done
 
       - name: Ler metadados de dist/bundle/config.json
         id: cfg

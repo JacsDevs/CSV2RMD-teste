@@ -1894,37 +1894,68 @@
         config.metadados.versao = versaoStr;
         if (packageName) { config.android = config.android || {}; config.android.packageName = packageName; }
 
-        // 3. Montar payload.zip: index.html + config.json + audio/ + foto/ + video/ + icone.png
-        ghLog('📦 Compactando payload.zip...');
-        const zip = new JSZip();
-        zip.file('index.html', htmlDicionario);
-        zip.file('config.json', JSON.stringify(config, null, 2));
-        for (const f of cp.arquivosEncontrados.audio  || []) zip.file(`audio/${f.name}`,  await f.arrayBuffer());
-        for (const f of cp.arquivosEncontrados.imagem || []) zip.file(`foto/${f.name}`,   await f.arrayBuffer());
-        for (const f of cp.arquivosEncontrados.video  || []) zip.file(`video/${f.name}`,  await f.arrayBuffer());
-        if (_apkIconeBytes.length > 0) zip.file('icone.png', _apkIconeBytes);
+        // 3. Coletar todos os arquivos com bytes e caminhos
+        ghLog('📦 Preparando arquivos para envio...');
+        const MAX_ZIP_BYTES = 80 * 1024 * 1024;
 
-        const zipBytes = await zip.generateAsync({ type: 'uint8array', compression: 'DEFLATE', compressionOptions: { level: 6 } });
-        ghLog(`   payload.zip: ${(zipBytes.length / 1024).toFixed(0)} KB`);
+        const arquivosParaZip = [
+            { path: 'index.html',  bytes: new TextEncoder().encode(htmlDicionario) },
+            { path: 'config.json', bytes: new TextEncoder().encode(JSON.stringify(config, null, 2)) },
+        ];
+        for (const f of cp.arquivosEncontrados.audio  || []) arquivosParaZip.push({ path: `audio/${f.name}`,  bytes: new Uint8Array(await f.arrayBuffer()) });
+        for (const f of cp.arquivosEncontrados.imagem || []) arquivosParaZip.push({ path: `foto/${f.name}`,   bytes: new Uint8Array(await f.arrayBuffer()) });
+        for (const f of cp.arquivosEncontrados.video  || []) arquivosParaZip.push({ path: `video/${f.name}`,  bytes: new Uint8Array(await f.arrayBuffer()) });
+        if (_apkIconeBytes.length > 0) arquivosParaZip.push({ path: 'icone.png', bytes: new Uint8Array(_apkIconeBytes) });
 
-        // 4. Converter ZIP para base64
-        let zipBase64 = '';
-        const CHUNK = 0x8000;
-        for (let i = 0; i < zipBytes.length; i += CHUNK)
-            zipBase64 += String.fromCharCode.apply(null, zipBytes.subarray(i, i + CHUNK));
-        zipBase64 = btoa(zipBase64);
+        // Bin-packing: agrupar em grupos de até 80 MB (tamanho bruto dos arquivos originais)
+        const grupos = [[]];
+        const tamGrupos = [0];
+        for (const arq of arquivosParaZip) {
+            const tam = arq.bytes.length;
+            const idx = grupos.length - 1;
+            if (tamGrupos[idx] > 0 && tamGrupos[idx] + tam > MAX_ZIP_BYTES) {
+                grupos.push([arq]);
+                tamGrupos.push(tam);
+            } else {
+                grupos[idx].push(arq);
+                tamGrupos[idx] += tam;
+            }
+        }
+        ghLog(`   ${arquivosParaZip.length} arquivo(s) → ${grupos.length} payload(s)`);
 
-        // 5. Criar blob e commit com o único arquivo dados/payload.zip
+        // 4. Gerar um ZIP por grupo e converter para base64
+        const toBase64 = (bytes) => {
+            let s = '';
+            const CHUNK = 0x8000;
+            for (let i = 0; i < bytes.length; i += CHUNK)
+                s += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK));
+            return btoa(s);
+        };
+
+        const zipsGerados = [];
+        for (let i = 0; i < grupos.length; i++) {
+            const z = new JSZip();
+            for (const arq of grupos[i]) z.file(arq.path, arq.bytes);
+            const bytes = await z.generateAsync({ type: 'uint8array', compression: 'DEFLATE', compressionOptions: { level: 6 } });
+            const nome = grupos.length === 1 ? 'payload.zip' : `payload-${i + 1}.zip`;
+            ghLog(`   ${nome}: ${(bytes.length / 1024).toFixed(0)} KB`);
+            zipsGerados.push({ nome, base64: toBase64(bytes) });
+        }
+
+        // 5. Criar blobs e commit com todos os payloads
         ghLog('🔍 Lendo último commit de main...');
         const refMain     = await ghApi(base, headers, '/git/ref/heads/main', 'GET');
         const baseSha     = refMain.object.sha;
         const baseCommit  = await ghApi(base, headers, `/git/commits/${baseSha}`, 'GET');
         const baseTreeSha = baseCommit.tree.sha;
 
-        ghLog('⬆️ Enviando payload.zip...');
-        const blob = await ghApi(base, headers, '/git/blobs', 'POST', { content: zipBase64, encoding: 'base64' });
-        const treeItems = [{ path: 'dados/payload.zip', mode: '100644', type: 'blob', sha: blob.sha }];
-        ghLog('   ✓ dados/payload.zip');
+        const treeItems = [];
+        for (const zipInfo of zipsGerados) {
+            ghLog(`⬆️ Enviando ${zipInfo.nome}...`);
+            const blob = await ghApi(base, headers, '/git/blobs', 'POST', { content: zipInfo.base64, encoding: 'base64' });
+            treeItems.push({ path: `dados/${zipInfo.nome}`, mode: '100644', type: 'blob', sha: blob.sha });
+            ghLog(`   ✓ dados/${zipInfo.nome}`);
+        }
 
         ghLog('🌳 Criando árvore e commit...');
         const novaTree   = await ghApi(base, headers, '/git/trees',   'POST', { base_tree: baseTreeSha, tree: treeItems });
