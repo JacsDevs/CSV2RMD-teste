@@ -1896,7 +1896,7 @@
 
         // 3. Coletar todos os arquivos com bytes e caminhos
         ghLog('📦 Preparando arquivos para envio...');
-        const MAX_ZIP_BYTES = 80 * 1024 * 1024;
+        const MAX_ZIP_BYTES = 20 * 1024 * 1024;
 
         const arquivosParaZip = [
             { path: 'index.html',  bytes: new TextEncoder().encode(htmlDicionario) },
