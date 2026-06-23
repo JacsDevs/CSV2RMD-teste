@@ -10,6 +10,20 @@ use zip::{CompressionMethod, ZipArchive, ZipWriter};
 // Resolução de caminhos
 // ---------------------------------------------------------------------------
 
+/// Remove o prefixo \\?\ (extended-length path) que a Tauri API retorna no
+/// Windows em modo release. Ferramentas Java como bundletool e apksigner não
+/// sabem interpretar esse formato e falham ao tentar abrir seus próprios JARs.
+fn normalizar_caminho(p: PathBuf) -> PathBuf {
+    #[cfg(windows)]
+    {
+        let s = p.to_string_lossy();
+        if let Some(rest) = s.strip_prefix(r"\\?\") {
+            return PathBuf::from(rest.to_string());
+        }
+    }
+    p
+}
+
 fn resources_dir(_app: &tauri::AppHandle) -> PathBuf {
     #[cfg(debug_assertions)]
     {
@@ -17,10 +31,11 @@ fn resources_dir(_app: &tauri::AppHandle) -> PathBuf {
     }
     #[cfg(not(debug_assertions))]
     {
-        _app.path()
+        let p = _app.path()
             .resource_dir()
             .expect("resource_dir não encontrado")
-            .join("resources")
+            .join("resources");
+        normalizar_caminho(p)
     }
 }
 
@@ -56,6 +71,10 @@ fn java(app: &tauri::AppHandle) -> Result<PathBuf, String> {
 
 fn keytool(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     buscar_bin(app, if cfg!(windows) { "keytool.exe" } else { "keytool" })
+}
+
+fn jarsigner(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    buscar_bin(app, if cfg!(windows) { "jarsigner.exe" } else { "jarsigner" })
 }
 
 fn buscar_android_sdk_bin(app: &tauri::AppHandle, nome: &str) -> Result<PathBuf, String> {
@@ -99,7 +118,7 @@ fn caminho_keystore_padrao(app: &tauri::AppHandle) -> Result<PathBuf, String> {
         .path()
         .app_data_dir()
         .map_err(|e| format!("Erro ao obter diretório de dados: {e}"))?;
-    Ok(dir.join("upload.jks"))
+    Ok(normalizar_caminho(dir).join("upload.jks"))
 }
 
 fn garantir_keystore_auto(
@@ -411,8 +430,9 @@ pub fn gerar_aplicativo(
         aapt2: aapt2(app)?,
         zipalign: zipalign(app)?,
         java: java(app)?,
+        jarsigner: jarsigner(app)?,
         android_jar: caminho_recurso_obrigatorio(app, "android-sdk/android.jar")?,
-        apksigner_jar: caminho_recurso_obrigatorio(app, "android-sdk/apksigner.jar")?,
+        apksigner_jar: Some(caminho_recurso_obrigatorio(app, "android-sdk/apksigner.jar")?),
         bundletool_jar: caminho_recurso_obrigatorio(app, "bundletool.jar")?,
         template_apk: caminho_recurso_obrigatorio(app, "template.apk")?,
         template_dir: resources_dir(app).join("android-template"),
@@ -437,7 +457,7 @@ pub fn gerar_aplicativo(
         (ks, store_pass.to_owned(), alias_real, key_pass.to_owned())
     } else {
         (
-            PathBuf::from(keystore_path),
+            normalizar_caminho(PathBuf::from(keystore_path)),
             store_pass.to_owned(),
             key_alias.to_owned(),
             key_pass.to_owned(),
@@ -448,7 +468,7 @@ pub fn gerar_aplicativo(
         &ferramentas,
         html,
         nome_app,
-        Path::new(pasta_saida),
+        &normalizar_caminho(PathBuf::from(pasta_saida)),
         &ks_path,
         &ks_pass,
         &ks_alias,
@@ -469,8 +489,10 @@ pub struct FerramentasAndroid {
     pub aapt2: PathBuf,
     pub zipalign: PathBuf,
     pub java: PathBuf,
+    pub jarsigner: PathBuf,
     pub android_jar: PathBuf,
-    pub apksigner_jar: PathBuf,
+    /// Opcional: usado apenas pelo CLI de CI (GitHub Actions). O desktop usa jarsigner.
+    pub apksigner_jar: Option<PathBuf>,
     pub bundletool_jar: PathBuf,
     pub template_apk: PathBuf,
     /// Pasta com AndroidManifest.xml + res/ (placeholders {{PACKAGE_NAME}} etc.)
@@ -513,11 +535,12 @@ pub fn gerar_apk_e_aab(
     let aapt2_bin = &ferramentas.aapt2;
     let zipalign_bin = &ferramentas.zipalign;
     let android_jar = &ferramentas.android_jar;
-    let apksigner_jar = &ferramentas.apksigner_jar;
+    let apksigner_jar = ferramentas.apksigner_jar.as_ref();
     let bundletool_jar = &ferramentas.bundletool_jar;
     let template_apk_path = &ferramentas.template_apk;
     let template_dir = &ferramentas.template_dir;
     let j = &ferramentas.java;
+    let jarsigner_bin = &ferramentas.jarsigner;
 
     let pkg = if package_name.trim().is_empty() {
         format!("br.com.csv2dmli.{nome}")
@@ -663,25 +686,53 @@ pub fn gerar_apk_e_aab(
         ));
     }
 
-    let saida = Command::new(j)
-        .args([
-            "-jar", apksigner_jar.to_str().unwrap(),
-            "sign",
-            "--ks", ks_path.to_str().unwrap(),
-            &format!("--ks-pass=pass:{ks_pass}"),
-            &format!("--ks-key-alias={ks_alias}"),
-            &format!("--key-pass=pass:{ks_key_pass}"),
-            "--out", apk_path.to_str().unwrap(),
-            aligned_apk_path.to_str().unwrap(),
-        ])
-        .output()
-        .map_err(|e| format!("Erro ao executar apksigner: {e}"))?;
-    if !saida.status.success() {
-        return Err(format!(
-            "apksigner falhou:\nstdout: {}\nstderr: {}",
-            String::from_utf8_lossy(&saida.stdout),
-            String::from_utf8_lossy(&saida.stderr)
-        ));
+    // Prefere apksigner (v1+v2+v3 — necessário para Android 11+).
+    // Fallback para jarsigner (v1 apenas) se apksigner não estiver disponível.
+    if let Some(jar) = apksigner_jar {
+        let saida = Command::new(j)
+            .args([
+                "-jar", jar.to_str().unwrap(),
+                "sign",
+                "--ks", ks_path.to_str().unwrap(),
+                &format!("--ks-pass=pass:{ks_pass}"),
+                &format!("--ks-key-alias={ks_alias}"),
+                &format!("--key-pass=pass:{ks_key_pass}"),
+                "--out", apk_path.to_str().unwrap(),
+                aligned_apk_path.to_str().unwrap(),
+            ])
+            .output()
+            .map_err(|e| format!("Erro ao executar apksigner: {e}"))?;
+        if !saida.status.success() {
+            return Err(format!(
+                "apksigner falhou:\nstdout: {}\nstderr: {}",
+                String::from_utf8_lossy(&saida.stdout),
+                String::from_utf8_lossy(&saida.stderr)
+            ));
+        }
+    } else {
+        // Fallback: jarsigner (v1 apenas — instala em qualquer Android, mas
+        // targetSdkVersion >= 30 pode rejeitar em Android 11+ sem v2).
+        let saida = Command::new(jarsigner_bin)
+            .args([
+                "-J-Dfile.encoding=UTF-8",
+                "-keystore", ks_path.to_str().unwrap(),
+                "-storepass", ks_pass,
+                "-keypass", ks_key_pass,
+                "-digestalg", "SHA-256",
+                "-sigalg", "SHA256withRSA",
+                "-signedjar", apk_path.to_str().unwrap(),
+                aligned_apk_path.to_str().unwrap(),
+                ks_alias,
+            ])
+            .output()
+            .map_err(|e| format!("Erro ao executar jarsigner: {e}"))?;
+        if !saida.status.success() {
+            return Err(format!(
+                "jarsigner falhou:\nstdout: {}\nstderr: {}",
+                String::from_utf8_lossy(&saida.stdout),
+                String::from_utf8_lossy(&saida.stderr)
+            ));
+        }
     }
 
     // =========================================================================

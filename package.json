@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "npx live-server --port=8080 --no-browser --open=index-wizard.html .",
     "build": "node scripts/prepare-frontend-dist.mjs",
+    "build:vendor-android": "node scripts/build-vendor-android.mjs",
+    "build:android-template": "cd android-template && ./gradlew :app:bundleDebug && cp app/build/outputs/bundle/debug/app-debug.aab ../vendor/android/template.aab",
     "tauri": "tauri",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -20,5 +22,11 @@
     "@tauri-apps/api": "^2.11.0",
     "@tauri-apps/plugin-dialog": "^2.7.1",
     "@tauri-apps/plugin-fs": "^2.5.1"
+  },
+  "optionalDependencies": {
+    "axml": "npm:null@^0.1.5",
+    "fflate": "^0.8.3",
+    "node-forge": "^1.4.0",
+    "protobufjs": "^7.6.4"
   }
 }

@@ -14,6 +14,12 @@
     <link rel="stylesheet" href="vendor/font-awesome/css/all.min.css">
     <!-- Estilo Principal -->
     <link rel="stylesheet" href="static/css/style.css">
+    <!-- PWA -->
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#2563eb">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="CSV2DMLI">
+    <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
     
     <style>
         /* Estilos Exclusivos do Assistente (Wizard) */
@@ -741,6 +747,107 @@
           </div>
         </div>
         </div><!-- /apkKsLocalSection -->
+
+        <!-- Gerenciamento de chave — modo PWA (assinatura no browser) -->
+        <div id="apkKsBrowserSection" style="display:none;">
+
+          <!-- Seleção de modo online: PWA ou GitHub Actions -->
+          <div id="apkModoOnlineSelector" style="display:none; margin-bottom:16px; padding:12px 14px; background:#f8fafc; border:1px solid var(--border-color); border-radius:10px;">
+            <div style="font-weight:700; font-size:0.88em; margin-bottom:10px; color:var(--text-main);">Como gerar o aplicativo?</div>
+            <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; padding:8px 0;">
+              <input type="radio" name="apkModoOnline" value="pwa" checked style="margin-top:3px; accent-color:var(--primary);" onchange="apkAtualizarModoOnline()">
+              <div>
+                <div style="font-weight:600; font-size:0.9em;">🌐 Gerar no navegador <span style="font-size:0.8em; color:var(--success); font-weight:400;">(offline, sem servidor)</span></div>
+                <div style="font-size:0.78em; color:var(--text-muted); margin-top:2px;">Assina o AAB diretamente no browser. Não requer conta GitHub.</div>
+              </div>
+            </label>
+            <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; padding:8px 0; border-top:1px solid var(--border-color); margin-top:4px;">
+              <input type="radio" name="apkModoOnline" value="github" style="margin-top:3px; accent-color:var(--primary);" onchange="apkAtualizarModoOnline()">
+              <div>
+                <div style="font-weight:600; font-size:0.9em;">☁️ GitHub Actions <span style="font-size:0.8em; color:var(--text-muted); font-weight:400;">(requer conta GitHub + token)</span></div>
+                <div style="font-size:0.78em; color:var(--text-muted); margin-top:2px;">Compila e assina na nuvem. Compatível com keystores .jks existentes.</div>
+              </div>
+            </label>
+          </div>
+
+          <!-- Seção chave PWA (visível quando modo = pwa) -->
+          <div id="apkKsBrowserPwa" style="margin-top:8px;">
+
+            <!-- Estado: sem chave -->
+            <div id="apkKsBrNoKey">
+              <div style="padding:16px; background:#fff3e0; border:1px solid #ffcc80; border-radius:10px; margin-bottom:14px;">
+                <strong>🔑 Nenhuma chave encontrada neste navegador.</strong>
+                <p style="font-size:0.84em; margin:6px 0 0 0; color:#e65100;">Crie uma chave de assinatura ou importe um arquivo .p12 existente.</p>
+              </div>
+              <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                <button onclick="apkKsBrCriarChave()" class="btn btn-primary" style="font-size:0.88em;">+ Criar nova chave</button>
+                <button onclick="apkKsBrImportarP12()" class="btn btn-outline" style="font-size:0.88em;">📥 Importar .p12</button>
+              </div>
+            </div>
+
+            <!-- Estado: chave presente -->
+            <div id="apkKsBrHasKey" style="display:none;">
+              <div style="padding:16px; background:#f0fdf4; border:1px solid #86efac; border-radius:10px; margin-bottom:14px;">
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+                  <span style="font-size:1.2em;">🔑</span>
+                  <strong id="apkKsBrAliasLabel" style="color:#166534;"></strong>
+                </div>
+                <div style="font-size:0.82em; color:#166534;" id="apkKsBrInfoLabel"></div>
+              </div>
+              <div style="margin-bottom:14px;">
+                <label style="font-weight:600; font-size:0.88em;">Senha da chave <span class="required">*</span></label>
+                <input id="apkKsBrSenha" type="password" placeholder="Informe a senha para assinar" style="margin-top:6px;">
+              </div>
+              <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                <button onclick="apkKsBrExportarP12()" class="btn btn-outline" style="font-size:0.85em;">📤 Exportar .p12</button>
+                <button onclick="apkKsBrSubstituir()" class="btn btn-outline" style="font-size:0.85em; color:#c2410c; border-color:#c2410c;">↺ Substituir chave</button>
+              </div>
+              <div style="margin-top:10px; padding:10px 12px; background:#fefce8; border-radius:8px; border:1px solid #fef08a; font-size:0.79em; color:#854d0e;">
+                <strong>⚠️</strong> Guarde o backup .p12 da sua chave. Ele é necessário para enviar atualizações ao Google Play. Sem ele, não será possível atualizar o app após publicação.
+              </div>
+            </div>
+
+            <!-- Formulário criar chave (inline) -->
+            <div id="apkKsBrFormCriar" style="display:none; margin-top:16px; padding:16px; background:#f8fafc; border:1px solid var(--border-color); border-radius:10px;">
+              <h4 style="margin:0 0 14px 0; font-size:0.95em;">Nova chave de assinatura</h4>
+              <div class="apk-grid-2">
+                <div class="apk-field">
+                  <label>Alias <span class="required">*</span></label>
+                  <input id="apkKsBrAlias" type="text" value="upload" autocomplete="off" spellcheck="false">
+                </div>
+                <div class="apk-field">
+                  <label>Nome / CN <span class="required">*</span></label>
+                  <input id="apkKsBrCn" type="text" placeholder="Ex: João Silva">
+                </div>
+                <div class="apk-field">
+                  <label>Organização <span class="required">*</span></label>
+                  <input id="apkKsBrOrg" type="text" placeholder="Ex: Universidade Federal">
+                </div>
+                <div class="apk-field">
+                  <label>País (ISO)</label>
+                  <input id="apkKsBrPais" type="text" value="BR" maxlength="2" style="text-transform:uppercase;">
+                </div>
+                <div class="apk-field">
+                  <label>Senha <span class="required">*</span></label>
+                  <input id="apkKsBrNovaSenha" type="password" placeholder="Mínimo 6 caracteres">
+                </div>
+                <div class="apk-field">
+                  <label>Confirmar senha <span class="required">*</span></label>
+                  <input id="apkKsBrNovaSenhaConfirm" type="password" placeholder="Repita a senha">
+                </div>
+              </div>
+              <div style="display:flex; gap:8px; margin-top:14px;">
+                <button onclick="apkKsBrSalvarNovaChave()" class="btn btn-primary" style="font-size:0.88em;">Criar e salvar chave</button>
+                <button onclick="apkKsBrCancelarFormulario()" class="btn btn-outline" style="font-size:0.88em;">Cancelar</button>
+              </div>
+            </div>
+
+            <!-- Input oculto para importar .p12 -->
+            <input type="file" id="apkKsBrP12Input" accept=".p12,.pfx" style="display:none" onchange="apkKsBrProcessarP12(this)">
+
+          </div><!-- /apkKsBrowserPwa -->
+        </div><!-- /apkKsBrowserSection -->
+
       </div>
 
       <!-- PASSO 4 — Processamento e Resultados -->
@@ -1750,7 +1857,12 @@
 
         try {
             if (_apkEhOnline) {
-                await _apkGerarOnline();
+                const modoOnline = document.querySelector('input[name="apkModoOnline"]:checked')?.value || 'pwa';
+                if (modoOnline === 'pwa') {
+                    await _apkGerarBrowser();
+                } else {
+                    await _apkGerarOnline();
+                }
             } else {
                 await _apkGerarLocal();
             }
@@ -2001,22 +2113,42 @@
         // Badge de modo
         const badge = document.getElementById('apkModoBadge');
         if (_apkEhOnline) {
-            badge.textContent = '☁️ Online (GitHub Actions)';
-            badge.style.background = '#e0f2fe'; badge.style.color = '#0369a1';
+            badge.textContent = '🌐 PWA (browser)';
+            badge.style.background = '#f0fdf4'; badge.style.color = '#166534';
         } else {
             badge.textContent = '💻 Local (Desktop)';
             badge.style.background = '#f0fdf4'; badge.style.color = '#166534';
         }
 
         // Mostrar/ocultar seções dependentes do modo
-        document.getElementById('apkGitHubFields').style.display    = _apkEhOnline ? 'block' : 'none';
-        document.getElementById('apkPastaContainer').style.display  = _apkEhOnline ? 'none'  : 'block';
-        document.getElementById('apkKsOnlineNotice').style.display  = _apkEhOnline ? 'block' : 'none';
-        document.getElementById('apkKsLocalSection').style.display  = _apkEhOnline ? 'none'  : 'block';
-        // Pré-preencher campos GitHub (modo online)
+        document.getElementById('apkPastaContainer').style.display  = _apkEhOnline ? 'none' : 'block';
+        document.getElementById('apkKsLocalSection').style.display  = _apkEhOnline ? 'none' : 'block';
+        document.getElementById('apkKsBrowserSection').style.display = _apkEhOnline ? 'block' : 'none';
+
         if (_apkEhOnline) {
+            // Mostrar seletor de modo online + ocultar notice do GitHub por padrão
+            document.getElementById('apkModoOnlineSelector').style.display = 'block';
+            document.getElementById('apkKsOnlineNotice').style.display     = 'none';
+            document.getElementById('apkGitHubFields').style.display       = 'none';
+            // Inicializar seletor no modo pwa
+            const radiosPwa = document.querySelector('input[name="apkModoOnline"][value="pwa"]');
+            if (radiosPwa) { radiosPwa.checked = true; }
+            document.getElementById('apkKsBrowserPwa').style.display = 'block';
+            // Atualizar estado da chave
+            await apkKsBrAtualizarEstado();
+            // Pré-preencher campos GitHub
             document.getElementById('ghRepo').value  = localStorage.getItem('csv2dmli_gh_repo')  || '';
             document.getElementById('ghToken').value = localStorage.getItem('csv2dmli_gh_token') || '';
+        } else {
+            document.getElementById('apkModoOnlineSelector').style.display = 'none';
+            document.getElementById('apkKsOnlineNotice').style.display     = 'none';
+            // Carregar caminho do keystore Tauri
+            try {
+                const caminho = await window.__TAURI__.core.invoke('caminho_keystore_auto');
+                document.getElementById('apkKsPathLabel').textContent = 'Arquivo: ' + caminho;
+            } catch(_) {
+                document.getElementById('apkKsPathLabel').textContent = 'Arquivo: (pasta AppData)';
+            }
         }
 
         // Pré-preencher nome do app
@@ -2026,16 +2158,6 @@
         document.getElementById('apkNomeApp').value = nomeDic;
         apkAtualizarPackageName();
 
-        // Carregar caminho do keystore (apenas local)
-        if (!_apkEhOnline) {
-            try {
-                const caminho = await window.__TAURI__.core.invoke('caminho_keystore_auto');
-                document.getElementById('apkKsPathLabel').textContent = 'Arquivo: ' + caminho;
-            } catch(_) {
-                document.getElementById('apkKsPathLabel').textContent = 'Arquivo: (pasta AppData)';
-            }
-        }
-
         apkIrParaPasso(1);
         document.getElementById('modalAndroid').style.display = 'flex';
     };
@@ -2043,6 +2165,249 @@
     window.fecharModalAndroid = function() {
         document.getElementById('modalAndroid').style.display = 'none';
     };
+
+    // ========================================================
+    // PWA — GERENCIAMENTO DE CHAVE E GERAÇÃO NO BROWSER
+    // ========================================================
+
+    let _exportadorAndroid = null;
+    async function _getExportador() {
+        if (!_exportadorAndroid) {
+            const { ExportadorAndroid } = await import('./packages/android/exportadorAndroid.js');
+            _exportadorAndroid = new ExportadorAndroid();
+        }
+        return _exportadorAndroid;
+    }
+
+    async function apkKsBrAtualizarEstado() {
+        try {
+            const exp  = await _getExportador();
+            const info = await exp.obterInfoChave();
+            const elNo  = document.getElementById('apkKsBrNoKey');
+            const elHas = document.getElementById('apkKsBrHasKey');
+            if (info) {
+                elNo.style.display  = 'none';
+                elHas.style.display = 'block';
+                document.getElementById('apkKsBrAliasLabel').textContent =
+                    `Chave: ${info.alias}`;
+                const criado = info.criadoEm ? new Date(info.criadoEm).toLocaleDateString('pt-BR') : '—';
+                const expira = info.expiraEm ? new Date(info.expiraEm).getFullYear() : '—';
+                document.getElementById('apkKsBrInfoLabel').textContent =
+                    `Criada em: ${criado}  ·  Válida até: ${expira}`;
+            } else {
+                elNo.style.display  = 'block';
+                elHas.style.display = 'none';
+            }
+        } catch (e) {
+            console.warn('Erro ao verificar chave:', e);
+        }
+    }
+
+    window.apkAtualizarModoOnline = function() {
+        const modo = document.querySelector('input[name="apkModoOnline"]:checked')?.value || 'pwa';
+        const ghSection = document.getElementById('apkGitHubFields');
+        const ksNotice  = document.getElementById('apkKsOnlineNotice');
+        const brPwa     = document.getElementById('apkKsBrowserPwa');
+        if (modo === 'pwa') {
+            ghSection.style.display = 'none';
+            brPwa.style.display = 'block';
+        } else {
+            ghSection.style.display = 'block';
+            brPwa.style.display = 'none';
+        }
+    };
+
+    window.apkKsBrCriarChave = function() {
+        document.getElementById('apkKsBrFormCriar').style.display = 'block';
+        document.getElementById('apkKsBrNoKey').style.display = 'none';
+        // Pre-fill CN/Org from wizard fields
+        const cn  = document.getElementById('apkNomeResponsavel')?.value?.trim();
+        const org = document.getElementById('apkOrganizacao')?.value?.trim();
+        if (cn)  document.getElementById('apkKsBrCn').value  = cn;
+        if (org) document.getElementById('apkKsBrOrg').value = org;
+    };
+
+    window.apkKsBrCancelarFormulario = function() {
+        document.getElementById('apkKsBrFormCriar').style.display = 'none';
+        document.getElementById('apkKsBrNoKey').style.display = 'block';
+    };
+
+    window.apkKsBrSalvarNovaChave = async function() {
+        const alias  = document.getElementById('apkKsBrAlias').value.trim() || 'upload';
+        const cn     = document.getElementById('apkKsBrCn').value.trim();
+        const org    = document.getElementById('apkKsBrOrg').value.trim();
+        const pais   = (document.getElementById('apkKsBrPais').value.trim() || 'BR').toUpperCase().slice(0, 2);
+        const senha  = document.getElementById('apkKsBrNovaSenha').value;
+        const senha2 = document.getElementById('apkKsBrNovaSenhaConfirm').value;
+
+        if (!cn)  { alert('Informe o Nome / CN.'); return; }
+        if (!org) { alert('Informe a Organização.'); return; }
+        if (senha.length < 6) { alert('A senha deve ter pelo menos 6 caracteres.'); return; }
+        if (senha !== senha2)  { alert('As senhas não coincidem.'); return; }
+
+        try {
+            window.mostrarLoader('Gerando chave…', 'Gerando par RSA-2048 e certificado X.509…');
+            const exp = await _getExportador();
+            await exp.gerarNovaChave(senha, { alias, cn, org, pais });
+            document.getElementById('apkKsBrFormCriar').style.display = 'none';
+            // Pre-fill sign password field
+            document.getElementById('apkKsBrSenha').value = senha;
+            await apkKsBrAtualizarEstado();
+            window.ocultarLoader();
+        } catch (e) {
+            window.ocultarLoader();
+            alert('Erro ao criar chave: ' + e.message);
+        }
+    };
+
+    window.apkKsBrImportarP12 = function() {
+        document.getElementById('apkKsBrP12Input').click();
+    };
+
+    window.apkKsBrProcessarP12 = async function(input) {
+        const file = input.files[0];
+        if (!file) return;
+        const senha = prompt('Senha do arquivo .p12:');
+        if (senha === null) return;
+        try {
+            window.mostrarLoader('Importando chave…', 'Validando e salvando .p12…');
+            const exp = await _getExportador();
+            await exp.importarP12(file, senha);
+            document.getElementById('apkKsBrSenha').value = senha;
+            await apkKsBrAtualizarEstado();
+            window.ocultarLoader();
+        } catch (e) {
+            window.ocultarLoader();
+            alert('Erro ao importar .p12: ' + e.message);
+        }
+        input.value = '';
+    };
+
+    window.apkKsBrExportarP12 = async function() {
+        const senha = document.getElementById('apkKsBrSenha').value;
+        if (!senha) { alert('Informe a senha da chave para exportar.'); return; }
+        try {
+            window.mostrarLoader('Exportando…', 'Gerando arquivo .p12…');
+            const exp  = await _getExportador();
+            const blob = await exp.exportarP12(senha);
+            const exp2 = await exp.obterInfoChave();
+            const nome = `chave_${(exp2?.alias || 'upload').replace(/\s+/g, '_')}.p12`;
+            const url  = URL.createObjectURL(blob);
+            const a    = document.createElement('a');
+            a.href = url; a.download = nome;
+            document.body.appendChild(a); a.click();
+            document.body.removeChild(a); URL.revokeObjectURL(url);
+            window.ocultarLoader();
+        } catch (e) {
+            window.ocultarLoader();
+            alert('Erro ao exportar: ' + e.message);
+        }
+    };
+
+    window.apkKsBrSubstituir = async function() {
+        if (!confirm('Substituir a chave atual? A chave atual será apagada permanentemente.')) return;
+        try {
+            const exp = await _getExportador();
+            await exp.deletarChave();
+            await apkKsBrAtualizarEstado();
+        } catch (e) {
+            alert('Erro: ' + e.message);
+        }
+    };
+
+    async function _apkGerarBrowser() {
+        const senha = document.getElementById('apkKsBrSenha')?.value || '';
+        if (!senha) { alert('Informe a senha da chave de assinatura.'); throw new Error('Senha não informada'); }
+
+        const nomeApp     = document.getElementById('apkNomeApp').value.trim();
+        const versaoStr   = document.getElementById('apkVersao')?.value.trim() || '1.0';
+        const packageName = document.getElementById('apkPackageName')?.value.trim() || 'br.com.csv2dmli.app';
+        const versionCode = parseVersionCode(versaoStr);
+
+        const progEl = document.getElementById('apkProgressSteps');
+        progEl.style.cssText = '';
+        progEl.innerHTML = `
+            <div class="apk-prog-step pending" id="apkPS1">⬜ Gerando HTML do dicionário…</div>
+            <div class="apk-prog-step pending" id="apkPS2">⬜ Carregando template AAB…</div>
+            <div class="apk-prog-step pending" id="apkPS3">⬜ Injetando conteúdo e patches…</div>
+            <div class="apk-prog-step pending" id="apkPS4">⬜ Assinando v1 + v2…</div>
+            <div class="apk-prog-step pending" id="apkPS5">⬜ Finalizando…</div>
+        `;
+
+        apkSetProg('apkPS1', 'running', 'Gerando HTML do dicionário…');
+        document.getElementById('apkStatusDesc').textContent = 'Gerando HTML com caminhos relativos…';
+
+        const selectWizard = document.getElementById('templateExportacaoSelect');
+        const formato = selectWizard ? selectWizard.value : 'linear';
+        const htmlStr = formato === 'card'
+            ? await window.exportador.exportarHtmlCards({ embutirMidias: false })
+            : await window.exportador.exportarHtmlLinear({ embutirMidias: false });
+        const htmlBytes = new TextEncoder().encode(htmlStr);
+
+        const midias = new Map();
+        for (const tipo of ['audio', 'imagem', 'video']) {
+            const dirName = tipo === 'imagem' ? 'foto' : tipo;
+            const nomes   = window.sistema.vfs.obterTodosNomes(tipo);
+            const arqs    = window.sistema.vfs.obterTodosArquivos(tipo);
+            for (let i = 0; i < nomes.length; i++) {
+                midias.set(`${dirName}/${nomes[i]}`, new Uint8Array(await arqs[i].arrayBuffer()));
+            }
+        }
+        apkSetProg('apkPS1', 'done', 'HTML gerado ✓');
+
+        apkSetProg('apkPS2', 'running', 'Carregando template AAB…');
+
+        const onProgress = (pct, msg) => {
+            document.getElementById('apkStatusDesc').textContent = msg;
+            if (pct >= 25 && pct < 55) {
+                apkSetProg('apkPS2', 'done', 'Template carregado ✓');
+                apkSetProg('apkPS3', 'running', msg);
+            } else if (pct >= 55 && pct < 75) {
+                apkSetProg('apkPS3', 'done', 'Conteúdo injetado ✓');
+                apkSetProg('apkPS4', 'running', msg);
+            } else if (pct >= 75 && pct < 95) {
+                apkSetProg('apkPS4', 'done', 'Assinado ✓');
+                apkSetProg('apkPS5', 'running', msg);
+            } else if (pct >= 95) {
+                apkSetProg('apkPS5', 'running', msg);
+            }
+        };
+
+        const exp = await _getExportador();
+        const nomeArquivo = await exp.gerarAab({
+            senha,
+            htmlBytes,
+            midias,
+            iconeBytes: _apkIconeBytes.length > 0 ? new Uint8Array(_apkIconeBytes) : null,
+            packageName,
+            appName: nomeApp,
+            versionName: versaoStr,
+            versionCode,
+            onProgress,
+        });
+
+        apkSetProg('apkPS5', 'done', 'Concluído ✓');
+
+        document.getElementById('apkLocalResultados').style.display  = 'none';
+        document.getElementById('apkOnlineResultados').style.display = 'block';
+        document.getElementById('apkBtnAbrirPasta').style.display    = 'none';
+        document.getElementById('apkSucessoDesc').textContent =
+            `Arquivo ${nomeArquivo} baixado. Envie-o ao Google Play Console.`;
+
+        // Show AAB info
+        const onlineLinkBox = document.getElementById('apkOnlineDownloadLinks');
+        onlineLinkBox.innerHTML = `
+            <div style="padding:12px 16px; background:#f0fdf4; border:1px solid #86efac; border-radius:8px;">
+              <div style="font-weight:700; color:#166534;">📦 ${nomeArquivo}</div>
+              <div style="font-size:0.82em; color:#166534; margin-top:4px;">
+                Arquivo baixado automaticamente. Envie ao Google Play Console para publicação.<br>
+                Guarde o backup da sua chave .p12 — necessário para enviar atualizações.
+              </div>
+            </div>`;
+
+        document.getElementById('apkProcessando').style.display = 'none';
+        document.getElementById('apkSucesso').style.display     = 'block';
+    }
 
     // ========================================================
     // GERAR ONLINE VIA GITHUB ACTIONS
@@ -2338,6 +2703,15 @@
             const offset = y - box.top - box.height / 2; 
             return (offset < 0 && offset > closest.offset) ? { offset, element: child } : closest; 
         }, { offset: Number.NEGATIVE_INFINITY }).element;
+    }
+</script>
+
+<!-- Registro do Service Worker (PWA) -->
+<script>
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js', { scope: '/' })
+            .then(reg => console.log('SW registrado:', reg.scope))
+            .catch(err => console.warn('SW falhou:', err));
     }
 </script>
 </body>

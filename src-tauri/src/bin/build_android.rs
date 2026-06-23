@@ -100,12 +100,27 @@ fn main() {
     let version_name = args.get("version-name").map(String::as_str).unwrap_or("");
     let version_code = args.get("version-code").and_then(|v| v.parse::<u32>().ok());
 
+    let java_path = PathBuf::from(obrigatorio(&args, "java"));
+    // jarsigner fica no mesmo diretório que java (padrão JDK)
+    let jarsigner_path = match args.get("jarsigner").filter(|v| !v.is_empty()) {
+        Some(p) => PathBuf::from(p),
+        None => {
+            let dir = java_path.parent().unwrap_or_else(|| Path::new(""));
+            let nome = if cfg!(windows) { "jarsigner.exe" } else { "jarsigner" };
+            dir.join(nome)
+        }
+    };
+    let apksigner_jar = args.get("apksigner-jar")
+        .filter(|v| !v.is_empty())
+        .map(PathBuf::from);
+
     let ferramentas = FerramentasAndroid {
         aapt2: PathBuf::from(obrigatorio(&args, "aapt2")),
         zipalign: PathBuf::from(obrigatorio(&args, "zipalign")),
-        java: PathBuf::from(obrigatorio(&args, "java")),
+        java: java_path,
+        jarsigner: jarsigner_path,
         android_jar: PathBuf::from(obrigatorio(&args, "android-jar")),
-        apksigner_jar: PathBuf::from(obrigatorio(&args, "apksigner-jar")),
+        apksigner_jar,
         bundletool_jar: PathBuf::from(obrigatorio(&args, "bundletool-jar")),
         template_apk: PathBuf::from(obrigatorio(&args, "template-apk")),
         template_dir: PathBuf::from(obrigatorio(&args, "template-dir")),
