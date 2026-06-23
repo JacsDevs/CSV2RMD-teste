@@ -1,25 +1,27 @@
 const CACHE = 'csv2dmli-v1';
 
+// Deriva o base path do próprio URL do SW.
+// Em GitHub Pages: '/CSV2RMD-teste'  |  Em localhost: ''
+const BASE = self.location.pathname.replace(/\/sw\.js$/, '');
+
 const PRE_CACHE = [
-  '/index-wizard.html',
-  '/static/css/style.css',
-  '/static/manifest.json',
-  '/static/icons/icon-192.png',
-  '/static/icons/icon-512.png',
-  '/vendor/papaparse.min.js',
-  '/vendor/jszip.min.js',
-  '/vendor/marked.min.js',
-  '/vendor/markdown2typst.esm.js',
-  '/vendor/fonts/fonts.css',
-  '/vendor/font-awesome/css/all.min.css',
+  BASE + '/index-wizard.html',
+  BASE + '/static/manifest.json',
+  BASE + '/static/icons/icon-192.png',
+  BASE + '/static/icons/icon-512.png',
+  BASE + '/vendor/papaparse.min.js',
+  BASE + '/vendor/jszip.min.js',
+  BASE + '/vendor/marked.min.js',
+  BASE + '/vendor/markdown2typst.esm.js',
+  BASE + '/vendor/fonts/fonts.css',
+  BASE + '/vendor/font-awesome/css/all.min.css',
 ];
 
 const ANDROID_CACHE = 'csv2dmli-android-v1';
 const ANDROID_ASSETS = [
-  '/vendor/fflate.min.js',
-  '/vendor/node-forge.min.js',
-  '/vendor/android/axml-browser.js',
-  '/vendor/android/template.aab',
+  BASE + '/vendor/fflate.min.js',
+  BASE + '/vendor/node-forge.min.js',
+  BASE + '/vendor/android/template.aab',
 ];
 
 self.addEventListener('install', e => {
@@ -52,7 +54,7 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
 
-  // template.aab — always from Android cache (large binary, never changes between sessions)
+  // template.aab — sempre do cache Android (binário grande, imutável entre sessões)
   if (url.pathname.endsWith('template.aab')) {
     e.respondWith(
       caches.match(e.request, { cacheName: ANDROID_CACHE })
@@ -64,12 +66,12 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // Cross-origin requests — network only
+  // Requisições cross-origin — só rede
   if (url.origin !== self.location.origin) {
     return;
   }
 
-  // All other requests — cache first, then network
+  // Demais requisições — cache first, network fallback
   e.respondWith(
     caches.match(e.request).then(cached => {
       if (cached) return cached;

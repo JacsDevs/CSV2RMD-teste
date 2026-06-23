@@ -12,8 +12,8 @@ const te = new TextEncoder();
  * @returns {Promise<Uint8Array>} ZIP com META-INF adicionado
  */
 export async function assinarV1(zipBytes, privateKeyPkcs8, certPem) {
-    const { unzipSync, zipSync, strToU8 } = await import('/vendor/fflate.min.js');
-    const { default: forge } = await import('/vendor/node-forge.min.js');
+    const { unzipSync, zipSync, strToU8 } = await import(new URL('../../vendor/fflate.min.js', import.meta.url).href);
+    const { default: forge } = await import(new URL('../../vendor/node-forge.min.js', import.meta.url).href);
 
     const arquivos = unzipSync(zipBytes);
 

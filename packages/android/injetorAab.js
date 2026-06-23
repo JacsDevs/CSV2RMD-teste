@@ -20,7 +20,7 @@ export class InjetorAab {
      * @returns {Promise<Uint8Array>}
      */
     async injetar(templateBytes, conteudo, meta) {
-        const { unzipSync, zipSync } = await import('/vendor/fflate.min.js');
+        const { unzipSync, zipSync } = await import(new URL('../../vendor/fflate.min.js', import.meta.url).href);
 
         // 1. Descompactar todo o AAB
         const arquivos = unzipSync(templateBytes);

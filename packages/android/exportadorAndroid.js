@@ -66,11 +66,11 @@ export class ExportadorAndroid {
         } = opcoes;
 
         onProgress(5, 'Carregando template AAB…');
-        const templateResp = await fetch('/vendor/android/template.aab');
+        const templateUrl = new URL('../../vendor/android/template.aab', import.meta.url).href;
+        const templateResp = await fetch(templateUrl);
         if (!templateResp.ok) {
             throw new Error(
-                'Template AAB não encontrado em /vendor/android/template.aab. ' +
-                'Execute "npm run build:android-template" para gerar o template.'
+                'Template AAB não encontrado. Execute "npm run build:android-template" para gerar o template.'
             );
         }
         const templateBytes = new Uint8Array(await templateResp.arrayBuffer());

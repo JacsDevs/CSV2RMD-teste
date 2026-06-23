@@ -85,7 +85,7 @@ export class GerenteChave {
     async gerarNovaChave(senha, { alias = 'upload', cn, org, pais = 'BR', validadeDias = 10000 } = {}) {
         if (!senha || senha.length < 6) throw new Error('A senha deve ter pelo menos 6 caracteres.');
 
-        const { default: forge } = await import('/vendor/node-forge.min.js');
+        const { default: forge } = await import(new URL('../../vendor/node-forge.min.js', import.meta.url).href);
 
         const keyPair = await crypto.subtle.generateKey(
             {
@@ -145,7 +145,7 @@ export class GerenteChave {
         if (!dados) throw new Error('Nenhuma chave encontrada. Crie ou importe uma chave primeiro.');
 
         const privKeyBuf = await this.#descriptografarChave(dados, senha);
-        const { default: forge } = await import('/vendor/node-forge.min.js');
+        const { default: forge } = await import(new URL('../../vendor/node-forge.min.js', import.meta.url).href);
 
         const cert = forge.pki.certificateFromPem(dados.certPem);
         const certAsn1 = forge.pki.certificateToAsn1(cert);
@@ -164,7 +164,7 @@ export class GerenteChave {
         if (!dados) throw new Error('Nenhuma chave para exportar.');
 
         const privKeyBuf = await this.#descriptografarChave(dados, senha);
-        const { default: forge } = await import('/vendor/node-forge.min.js');
+        const { default: forge } = await import(new URL('../../vendor/node-forge.min.js', import.meta.url).href);
 
         const cert = forge.pki.certificateFromPem(dados.certPem);
         const forgePriv = forge.pki.privateKeyFromAsn1(
@@ -181,7 +181,7 @@ export class GerenteChave {
     }
 
     async importarP12(arquivo, senha) {
-        const { default: forge } = await import('/vendor/node-forge.min.js');
+        const { default: forge } = await import(new URL('../../vendor/node-forge.min.js', import.meta.url).href);
 
         const buf = await arquivo.arrayBuffer();
         const p12Asn1 = forge.asn1.fromDer(
