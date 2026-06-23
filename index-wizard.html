@@ -1822,10 +1822,13 @@
             if (!document.getElementById('apkOrganizacao').value.trim())
                 { alert('Informe a Organização.'); return false; }
             if (_apkEhOnline) {
-                const repo = document.getElementById('ghRepo').value.trim();
-                const tok  = document.getElementById('ghToken').value.trim();
-                if (!repo || !repo.includes('/')) { alert('Informe o repositório no formato owner/repo.'); return false; }
-                if (!tok) { alert('Informe o Personal Access Token.'); return false; }
+                const modoOnline = document.querySelector('input[name="apkModoOnline"]:checked')?.value || 'pwa';
+                if (modoOnline !== 'pwa') {
+                    const repo = document.getElementById('ghRepo').value.trim();
+                    const tok  = document.getElementById('ghToken').value.trim();
+                    if (!repo || !repo.includes('/')) { alert('Informe o repositório no formato owner/repo.'); return false; }
+                    if (!tok) { alert('Informe o Personal Access Token.'); return false; }
+                }
             }
             apkAtualizarPackageName();
             return true;
