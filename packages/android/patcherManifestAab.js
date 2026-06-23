@@ -61,23 +61,33 @@ function extractPackageName(bytes) {
 
 function patchXmlElement(bytes, patches) {
     const fields = parseFields(bytes);
+    const out = [];
     for (const f of fields) {
         if (f.fieldNum === 4 && f.wt === WT_LEN) {
-            // XmlElement.attribute (repeated) — patch each attribute
+            // XmlElement.attribute (repeated) — remover debuggable; patch demais
+            if (isAttrNamed(f.raw, 'debuggable')) continue;
             f.raw = patchXmlAttribute(f.raw, patches);
+            out.push(f);
         } else if (f.fieldNum === 5 && f.wt === WT_LEN) {
             // XmlElement.child (repeated) = XmlNode — recurse into it
             const xmlNodeFields = parseFields(f.raw);
             for (const nf of xmlNodeFields) {
                 if (nf.fieldNum === 1 && nf.wt === WT_LEN) {
-                    // XmlNode.element = nested XmlElement
                     nf.raw = patchXmlElement(nf.raw, patches);
                 }
             }
             f.raw = serializeFields(xmlNodeFields);
+            out.push(f);
+        } else {
+            out.push(f);
         }
     }
-    return serializeFields(fields);
+    return serializeFields(out);
+}
+
+function isAttrNamed(attrBytes, name) {
+    const nameField = parseFields(attrBytes).find(f => f.fieldNum === 2 && f.wt === WT_LEN);
+    return nameField ? td.decode(nameField.raw) === name : false;
 }
 
 function patchXmlAttribute(bytes, patches) {

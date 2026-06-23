@@ -6,7 +6,7 @@ const BASE = self.location.pathname.replace(/\/sw\.js$/, '');
 
 const PRE_CACHE = [
   BASE + '/index-wizard.html',
-  BASE + '/static/manifest.json',
+  BASE + '/manifest.json',
   BASE + '/static/icons/icon-192.png',
   BASE + '/static/icons/icon-512.png',
   BASE + '/vendor/papaparse.min.js',
