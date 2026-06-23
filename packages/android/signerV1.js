@@ -70,30 +70,11 @@ export async function assinarV1(zipBytes, privateKeyPkcs8, certPem) {
         await crypto.subtle.sign('RSASSA-PKCS1-v1_5', cryptoKey, sfBytes)
     );
 
-    // 5. Encapsular em PKCS#7 SignedData detachado com node-forge
-    const cert = forge.pki.certificateFromPem(certPem);
-    const p7   = forge.pkcs7.createSignedData();
-
-    // Content is the SF file (though technically PKCS#7 SignedData can be detached)
-    p7.content = forge.util.createBuffer(sfContent);
-    p7.addCertificate(cert);
-
-    // Add the signer with pre-computed signature (SHA256withRSA)
-    p7.addSigner({
-        key:         null,         // we supply the raw signature instead
-        certificate: cert,
-        digestAlgorithm: forge.pki.oids['sha256'],
-        authenticatedAttributes: [
-            { type: forge.pki.oids.contentType,         value: forge.pki.oids.data },
-            { type: forge.pki.oids.signingTime,         value: new Date() },
-            { type: forge.pki.oids.messageDigest,       value: '' },
-        ],
-    });
-
-    // Manual approach: use forge to build a minimal PKCS#7 DER
+    // 5. Encapsular em PKCS#7 SignedData com builder manual (usa assinatura já calculada)
+    const cert     = forge.pki.certificateFromPem(certPem);
     const certAsn1 = forge.pki.certificateToAsn1(cert);
-    const signerInfo = buildSignerInfo(forge, cert, sfBytes, signature);
-    const p7Asn1    = buildPkcs7Asn1(forge, certAsn1, signerInfo);
+    const signerInfo = await buildSignerInfo(forge, cert, sfBytes, signature);
+    const p7Asn1     = buildPkcs7Asn1(forge, certAsn1, signerInfo);
     const p7Der     = forge.asn1.toDer(p7Asn1).getBytes();
     const certRsa   = Uint8Array.from(p7Der, c => c.charCodeAt(0));
 

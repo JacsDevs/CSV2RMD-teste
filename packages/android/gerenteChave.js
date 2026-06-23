@@ -200,10 +200,12 @@ export class GerenteChave {
         const privForge = keyBag.key;
         const cert      = certBag.cert;
 
-        const privDerStr = forge.asn1.toDer(forge.pki.privateKeyToAsn1(privForge)).getBytes();
+        // Converter para PKCS#8 (PrivateKeyInfo) — Web Crypto exige esse formato
+        const privPkcs8Asn1 = forge.pki.wrapRsaPrivateKey(forge.pki.privateKeyToAsn1(privForge));
+        const privDerStr = forge.asn1.toDer(privPkcs8Asn1).getBytes();
         const privBuf    = Uint8Array.from(privDerStr, c => c.charCodeAt(0));
 
-        // Verify key can be imported by Web Crypto (validates format)
+        // Valida que o Web Crypto consegue importar (checa formato e algoritmo)
         await crypto.subtle.importKey(
             'pkcs8', privBuf.buffer,
             { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
