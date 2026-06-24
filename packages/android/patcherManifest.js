@@ -6,8 +6,7 @@
 //   <manifest package="...">           → packageName
 //   <manifest android:versionCode="N"> → versionCode (inteiro)
 //   <manifest android:versionName="S"> → versionName (string)
-//   <application android:label="S">    → appName (string direta — requer template
-//                                         com label hardcoded, não @string/ref)
+//   <application android:label="S">    → appName (converte TYPE_REFERENCE → TYPE_STRING)
 
 // Chunk types
 const RES_STRINGPOOL_TYPE        = 0x0001;
@@ -316,13 +315,12 @@ function applyPatches(doc, patches) {
                 for (const attr of chunk.attrs) {
                     const attrName = strings[attr.name] || '';
 
-                    // android:label — only patch if it is already TYPE_STRING
-                    if (attrName === 'label' && attr.dataType === TYPE_STRING) {
-                        if (patches.appName) {
-                            const idx = intern(patches.appName);
-                            attr.rawValue = idx;
-                            attr.data     = idx;
-                        }
+                    // android:label — patch sempre, convertendo TYPE_REFERENCE para TYPE_STRING
+                    if (attrName === 'label' && patches.appName) {
+                        const idx = intern(patches.appName);
+                        attr.rawValue = idx;
+                        attr.data     = idx;
+                        attr.dataType = TYPE_STRING;
                     }
                 }
             }
