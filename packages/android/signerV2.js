@@ -101,7 +101,7 @@ async function calcularDigestsConteudo(contentBytes) {
 
     return Promise.all(chunks.map(async chunk => {
         const prefixed = new Uint8Array(5 + chunk.length);
-        prefixed[0] = 0x5a;
+        prefixed[0] = 0xa5;
         new DataView(prefixed.buffer).setUint32(1, chunk.length, true);
         prefixed.set(chunk, 5);
         return new Uint8Array(await crypto.subtle.digest('SHA-256', prefixed));
