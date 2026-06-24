@@ -29,6 +29,8 @@ jobs:
         run: |
           mkdir -p dist
           cp index-wizard.html dist/index.html
+          cp manifest.json     dist/manifest.json
+          cp sw.js             dist/sw.js
           cp -r packages dist/packages
           cp -r static   dist/static
           cp -r assets   dist/assets
