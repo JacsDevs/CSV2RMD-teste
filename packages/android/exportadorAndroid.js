@@ -38,7 +38,7 @@ export class ExportadorAndroid {
     }
 
     /**
-     * Gera e baixa o AAB assinado.
+     * Gera e baixa o AAB e o APK assinados.
      *
      * @param {{
      *   senha: string,
@@ -52,7 +52,7 @@ export class ExportadorAndroid {
      *   onProgress?: (pct: number, msg: string) => void,
      * }} opcoes
      */
-    async gerarAab(opcoes) {
+    async gerarAmbos(opcoes) {
         const {
             senha,
             htmlBytes,
@@ -65,40 +65,60 @@ export class ExportadorAndroid {
             onProgress = () => {},
         } = opcoes;
 
-        onProgress(5, 'Carregando template AAB…');
-        const templateUrl = new URL('../../vendor/android/template.aab', import.meta.url).href;
-        const templateResp = await fetch(templateUrl);
-        if (!templateResp.ok) {
+        onProgress(5, 'Carregando templates (AAB e APK)…');
+        const templateUrlAab = new URL('../../vendor/android/template.aab', import.meta.url).href;
+        const templateUrlApk = new URL('../../vendor/android/template.apk', import.meta.url).href;
+        
+        const [templateRespAab, templateRespApk] = await Promise.all([
+            fetch(templateUrlAab),
+            fetch(templateUrlApk)
+        ]);
+
+        if (!templateRespAab.ok || !templateRespApk.ok) {
             throw new Error(
-                'Template AAB não encontrado. Execute "npm run build:android-template" para gerar o template.'
+                'Template AAB ou APK não encontrado. Execute "npm run build:android-template" para gerar os templates.'
             );
         }
-        const templateBytes = new Uint8Array(await templateResp.arrayBuffer());
+        
+        const templateBytesAab = new Uint8Array(await templateRespAab.arrayBuffer());
+        const templateBytesApk = new Uint8Array(await templateRespApk.arrayBuffer());
 
         onProgress(15, 'Carregando chave de assinatura…');
         const { privateKeyPkcs8, certPem, certDer } =
             await this.gerenteChave.carregarChave(senha);
 
-        onProgress(25, 'Injetando conteúdo e patches…');
         const injector = new InjetorAab();
-        let aabBytes = await injector.injetar(
-            templateBytes,
-            { htmlBytes, midias, iconeBytes },
-            { packageName, appName, versionName, versionCode }
-        );
+        const appInfo = { htmlBytes, midias, iconeBytes };
+        const metaInfo = { packageName, appName, versionName, versionCode };
 
-        onProgress(55, 'Assinando (v1 — JAR signing)…');
+        // ---- Processar AAB ----
+        onProgress(25, 'Injetando conteúdo no AAB…');
+        let aabBytes = await injector.injetar(templateBytesAab, appInfo, metaInfo, false);
+
+        onProgress(40, 'Assinando AAB (v1 e v2)…');
         aabBytes = await assinarV1(aabBytes, privateKeyPkcs8, certPem);
-
-        onProgress(75, 'Assinando (v2 — APK Signing Block)…');
         aabBytes = await assinarV2(aabBytes, privateKeyPkcs8, certDer);
 
-        onProgress(95, 'Salvando arquivo…');
-        const nomeArquivo = `${appName.replace(/[^a-zA-Z0-9_\-]/g, '_')}.aab`;
-        const blob = new Blob([aabBytes], { type: 'application/octet-stream' });
-        await platform.salvarArquivo(nomeArquivo, blob);
+        // ---- Processar APK ----
+        onProgress(55, 'Injetando conteúdo no APK…');
+        let apkBytes = await injector.injetar(templateBytesApk, appInfo, metaInfo, true);
+
+        onProgress(70, 'Assinando APK (v1 e v2)…');
+        apkBytes = await assinarV1(apkBytes, privateKeyPkcs8, certPem);
+        apkBytes = await assinarV2(apkBytes, privateKeyPkcs8, certDer);
+
+        onProgress(85, 'Salvando arquivos…');
+        const baseName = appName.replace(/[^a-zA-Z0-9_\-]/g, '_');
+        const nomeAab = `${baseName}.aab`;
+        const nomeApk = `${baseName}.apk`;
+
+        const blobAab = new Blob([aabBytes], { type: 'application/octet-stream' });
+        await platform.salvarArquivo(nomeAab, blobAab);
+        
+        const blobApk = new Blob([apkBytes], { type: 'application/octet-stream' });
+        await platform.salvarArquivo(nomeApk, blobApk);
 
         onProgress(100, 'Concluído!');
-        return nomeArquivo;
+        return { aab: nomeAab, apk: nomeApk };
     }
 }

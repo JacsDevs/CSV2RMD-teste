@@ -2377,7 +2377,7 @@
         };
 
         const exp = await _getExportador();
-        const nomeArquivo = await exp.gerarAab({
+        const arquivosGerados = await exp.gerarAmbos({
             senha,
             htmlBytes,
             midias,
@@ -2395,15 +2395,18 @@
         document.getElementById('apkOnlineResultados').style.display = 'block';
         document.getElementById('apkBtnAbrirPasta').style.display    = 'none';
         document.getElementById('apkSucessoDesc').textContent =
-            `Arquivo ${nomeArquivo} baixado. Envie-o ao Google Play Console.`;
+            `Arquivos baixados. Envie o AAB ao Play Console e instale o APK para testes.`;
 
-        // Show AAB info
+        // Show AAB/APK info
         const onlineLinkBox = document.getElementById('apkOnlineDownloadLinks');
         onlineLinkBox.innerHTML = `
             <div style="padding:12px 16px; background:#f0fdf4; border:1px solid #86efac; border-radius:8px;">
-              <div style="font-weight:700; color:#166534;">📦 ${nomeArquivo}</div>
-              <div style="font-size:0.82em; color:#166534; margin-top:4px;">
-                Arquivo baixado automaticamente. Envie ao Google Play Console para publicação.<br>
+              <div style="font-weight:700; color:#166534;">📦 ${arquivosGerados.aab}</div>
+              <div style="font-weight:700; color:#166534; margin-top:8px;">📦 ${arquivosGerados.apk}</div>
+              <div style="font-size:0.82em; color:#166534; margin-top:8px;">
+                Arquivos baixados automaticamente.<br>
+                - <b>.aab</b>: Envie ao Google Play Console para publicação.<br>
+                - <b>.apk</b>: Instalação direta e testes locais.<br>
                 Guarde o backup da sua chave .p12 — necessário para enviar atualizações.
               </div>
             </div>`;
