@@ -1,4 +1,4 @@
-const CACHE = 'csv2dmli-v1';
+const CACHE = 'csv2dmli-v2';
 
 // Deriva o base path do próprio URL do SW.
 // Em GitHub Pages: '/CSV2RMD-teste'  |  Em localhost: ''
