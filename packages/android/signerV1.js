@@ -1,6 +1,9 @@
 // APK Signature Scheme v1 (JAR Signing).
 // Gera MANIFEST.MF, CERT.SF e CERT.RSA (PKCS#7 SignedData) dentro de META-INF/.
 // Web Crypto faz o hash SHA-256 e a assinatura RSA; node-forge monta o PKCS#7.
+//
+// RFC 2315 §9.3: quando authenticatedAttributes estão presentes, a assinatura RSA
+// é sobre o DER encoding dos authAttrs com tag SET (0x31), não sobre o conteúdo.
 
 const te = new TextEncoder();
 
@@ -12,7 +15,7 @@ const te = new TextEncoder();
  * @returns {Promise<Uint8Array>} ZIP com META-INF adicionado
  */
 export async function assinarV1(zipBytes, privateKeyPkcs8, certPem) {
-    const { unzipSync, zipSync, strToU8 } = await import(new URL('../../vendor/fflate.min.js', import.meta.url).href);
+    const { unzipSync, zipSync } = await import(new URL('../../vendor/fflate.min.js', import.meta.url).href);
     const { default: forge } = await import(new URL('../../vendor/node-forge.min.js', import.meta.url).href);
 
     const arquivos = unzipSync(zipBytes);
@@ -42,7 +45,7 @@ export async function assinarV1(zipBytes, privateKeyPkcs8, certPem) {
     arquivos['META-INF/MANIFEST.MF'] = manifestBytes;
 
     // 3. CERT.SF
-    const manifestDigest = await crypto.subtle.digest('SHA-256', manifestBytes);
+    const manifestDigest    = await crypto.subtle.digest('SHA-256', manifestBytes);
     const manifestDigestB64 = btoa(String.fromCharCode(...new Uint8Array(manifestDigest)));
 
     let sfContent = 'Signature-Version: 1.0\r\nCreated-By: CSV2DMLI\r\n' +
@@ -52,7 +55,6 @@ export async function assinarV1(zipBytes, privateKeyPkcs8, certPem) {
         const sBytes  = te.encode(secao);
         const sDigest = await crypto.subtle.digest('SHA-256', sBytes);
         const sB64    = btoa(String.fromCharCode(...new Uint8Array(sDigest)));
-        // Extract Name header from section
         const nameLine = secao.split('\r\n')[0];
         sfContent += `${nameLine}\r\nSHA-256-Digest: ${sB64}\r\n\r\n`;
     }
@@ -60,44 +62,41 @@ export async function assinarV1(zipBytes, privateKeyPkcs8, certPem) {
     const sfBytes = te.encode(sfContent);
     arquivos['META-INF/CERT.SF'] = sfBytes;
 
-    // 4. Assinar CERT.SF com RSA-PKCS1v1.5 via Web Crypto
+    // 4. Importar chave RSA
     const cryptoKey = await crypto.subtle.importKey(
         'pkcs8', privateKeyPkcs8,
         { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
         false, ['sign']
     );
+
+    // 5. Construir authenticatedAttributes e assinar o DER deles com tag SET
+    //    RFC 2315 §9.3: a assinatura é sobre DER(SET(authAttrs)), não sobre sfBytes.
+    const cert          = forge.pki.certificateFromPem(certPem);
+    const sfDigest      = new Uint8Array(await crypto.subtle.digest('SHA-256', sfBytes));
+    const sfDigestHex   = Array.from(sfDigest).map(b => b.toString(16).padStart(2, '0')).join('');
+    const authAttrItems = buildAuthAttrItems(forge, sfDigestHex);
+    const authAttrsDer  = authAttrsParaAssinar(forge, authAttrItems);
+
     const signature = new Uint8Array(
-        await crypto.subtle.sign('RSASSA-PKCS1-v1_5', cryptoKey, sfBytes)
+        await crypto.subtle.sign('RSASSA-PKCS1-v1_5', cryptoKey, authAttrsDer)
     );
 
-    // 5. Encapsular em PKCS#7 SignedData com builder manual (usa assinatura já calculada)
-    const cert     = forge.pki.certificateFromPem(certPem);
+    // 6. Montar PKCS#7 SignedData
     const certAsn1 = forge.pki.certificateToAsn1(cert);
-    const signerInfo = await buildSignerInfo(forge, cert, sfBytes, signature);
-    const p7Asn1     = buildPkcs7Asn1(forge, certAsn1, signerInfo);
-    const p7Der     = forge.asn1.toDer(p7Asn1).getBytes();
-    const certRsa   = Uint8Array.from(p7Der, c => c.charCodeAt(0));
+    const p7Asn1   = buildPkcs7Asn1(forge, certAsn1, cert, authAttrItems, signature);
+    const p7Der    = forge.asn1.toDer(p7Asn1).getBytes();
+    const certRsa  = Uint8Array.from(p7Der, c => c.charCodeAt(0));
 
     arquivos['META-INF/CERT.RSA'] = certRsa;
 
     return zipSync(arquivos, { level: 0 });
 }
 
-// ─── PKCS#7 SignedData minimal builder ───────────────────────────────────────
-// Builds a valid DER-encoded CMS SignedData without re-signing (uses pre-computed sig).
+// ─── authenticatedAttributes ─────────────────────────────────────────────────
 
-async function buildSignerInfo(forge, cert, sfBytes, signature) {
-    // Compute SHA-256 of sfBytes for MessageDigest authenticated attribute
-    const sfDigest = new Uint8Array(await crypto.subtle.digest('SHA-256', sfBytes));
-    const sfDigestB64 = btoa(String.fromCharCode(...sfDigest));
-    const sfDigestHex = Array.from(sfDigest).map(b => b.toString(16).padStart(2, '0')).join('');
-
-    const issuer  = cert.issuer;
-    const serial  = forge.util.hexToBytes(cert.serialNumber);
-
-    // Build authenticated attributes ASN.1
-    const authAttrs = forge.asn1.create(forge.asn1.Class.CONTEXT_SPECIFIC, 0, true, [
-        // contentType = data
+function buildAuthAttrItems(forge, sfDigestHex) {
+    return [
+        // contentType = id-data
         forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
             forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.OID, false,
                 forge.asn1.oidToDer(forge.pki.oids.contentType).getBytes()),
@@ -106,7 +105,7 @@ async function buildSignerInfo(forge, cert, sfBytes, signature) {
                     forge.asn1.oidToDer(forge.pki.oids.data).getBytes()),
             ]),
         ]),
-        // messageDigest
+        // messageDigest = SHA-256(CERT.SF)
         forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
             forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.OID, false,
                 forge.asn1.oidToDer(forge.pki.oids.messageDigest).getBytes()),
@@ -115,12 +114,23 @@ async function buildSignerInfo(forge, cert, sfBytes, signature) {
                     forge.util.hexToBytes(sfDigestHex)),
             ]),
         ]),
-    ]);
-
-    return { authAttrs, signature, issuer, serial };
+    ];
 }
 
-function buildPkcs7Asn1(forge, certAsn1, { authAttrs, signature, issuer, serial }) {
+// DER-codifica os authAttrs com tag SET (0x31) para a entrada da assinatura RSA.
+// No SignerInfo eles ficam com tag [0] (0xa0); para assinar, usa-se SET.
+function authAttrsParaAssinar(forge, authAttrItems) {
+    const setAsn1 = forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SET, true, authAttrItems);
+    const der = forge.asn1.toDer(setAsn1).getBytes();
+    return Uint8Array.from(der, c => c.charCodeAt(0));
+}
+
+// ─── PKCS#7 SignedData builder ───────────────────────────────────────────────
+
+function buildPkcs7Asn1(forge, certAsn1, cert, authAttrItems, signature) {
+    const issuer = cert.issuer;
+    const serial = forge.util.hexToBytes(cert.serialNumber);
+
     const signerInfoSeq = forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
         // version = 1
         forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.INTEGER, false, '\x01'),
@@ -136,14 +146,14 @@ function buildPkcs7Asn1(forge, certAsn1, { authAttrs, signature, issuer, serial 
             forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.NULL, false, ''),
         ]),
         // authenticatedAttributes [0] IMPLICIT
-        authAttrs,
+        forge.asn1.create(forge.asn1.Class.CONTEXT_SPECIFIC, 0, true, authAttrItems),
         // digestEncryptionAlgorithm rsaEncryption
         forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
             forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.OID, false,
                 forge.asn1.oidToDer(forge.pki.oids.rsaEncryption).getBytes()),
             forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.NULL, false, ''),
         ]),
-        // encryptedDigest (the actual RSA signature)
+        // encryptedDigest (assinatura RSA)
         forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.OCTETSTRING, false,
             forge.util.createBuffer(signature).getBytes()),
     ]);
@@ -159,7 +169,7 @@ function buildPkcs7Asn1(forge, certAsn1, { authAttrs, signature, issuer, serial 
                 forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.NULL, false, ''),
             ]),
         ]),
-        // contentInfo (detached — empty octet string)
+        // contentInfo (detached)
         forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
             forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.OID, false,
                 forge.asn1.oidToDer(forge.pki.oids.data).getBytes()),
@@ -170,7 +180,7 @@ function buildPkcs7Asn1(forge, certAsn1, { authAttrs, signature, issuer, serial 
         forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SET, true, [signerInfoSeq]),
     ]);
 
-    // Wrap in ContentInfo
+    // ContentInfo wrapper
     return forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
         forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.OID, false,
             forge.asn1.oidToDer(forge.pki.oids.signedData).getBytes()),

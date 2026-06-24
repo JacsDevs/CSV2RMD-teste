@@ -197,52 +197,40 @@ function montarSigningBlock(signedData, signature, certDer) {
         lengthPrefixed(spki),
     ]));
 
-    const signersList  = lengthPrefixed(signer);
-    const v2Block      = concat([uint32LE(V2_SCHEME_ID), signersList]);
+    const signersList = lengthPrefixed(signer);
 
-    // id-value pair: uint64 length + uint32 id + value
-    const pairSize  = 4 + v2Block.length;  // id(4) + value
-    const pairBytes = new Uint8Array(8 + pairSize);
-    const pv        = new DataView(pairBytes.buffer);
-    // size as uint64 little-endian (low 32, high 32)
-    pv.setUint32(0, pairSize, true);
-    pv.setUint32(4, 0, true);
-    pv.setUint32(8, V2_SCHEME_ID, true);
-    pairBytes.set(v2Block.slice(4), 12);   // value only (without the id)
-
-    // Actually per spec the pair is: [size: 8 bytes][id: 4 bytes][value: (size-4) bytes]
-    // Let me redo this correctly:
-    const valuePart = signersList;  // the value IS the signers list
-    const idValuePair = new Uint8Array(8 + 4 + valuePart.length);
+    // id-value pair: [uint64 size][uint32 id][value]
+    // size = 4 (id) + valuePart.length
+    const idValuePair = new Uint8Array(8 + 4 + signersList.length);
     const ipv = new DataView(idValuePair.buffer);
-    // uint64 LE: size = 4 (id) + valuePart.length
-    ipv.setUint32(0, 4 + valuePart.length, true);
+    ipv.setUint32(0, 4 + signersList.length, true);
     ipv.setUint32(4, 0, true);
     ipv.setUint32(8, V2_SCHEME_ID, true);
-    idValuePair.set(valuePart, 12);
+    idValuePair.set(signersList, 12);
 
-    // Block:
-    //   [size-of-block: uint64]
-    //   [id-value pairs...]
-    //   [size-of-block: uint64]  (repeated)
-    //   [magic: 16 bytes]
-    const blockSize = idValuePair.length;
-    const magic     = new TextEncoder().encode(SIGNING_BLOCK_MAGIC);
+    // Block layout:
+    //   [uint64 size_of_block]   ← exclui estes 8 bytes
+    //   [id-value pairs]
+    //   [uint64 size_of_block]   ← mesmo valor
+    //   [16 bytes magic]
+    //
+    // size_of_block = pairs.length + 8 (segundo uint64) + 16 (magic) = pairs.length + 24
+    const pairs        = idValuePair;
+    const sizeOfBlock  = pairs.length + 24;
+    const magic        = new TextEncoder().encode(SIGNING_BLOCK_MAGIC);
 
-    const block = new Uint8Array(8 + blockSize + 8 + 16);
+    const block = new Uint8Array(8 + pairs.length + 8 + 16);
     const bv    = new DataView(block.buffer);
 
-    // First size field (uint64 LE)
-    bv.setUint32(0, blockSize, true);
-    bv.setUint32(4, 0,         true);
+    bv.setUint32(0, sizeOfBlock, true);
+    bv.setUint32(4, 0,           true);
 
-    block.set(idValuePair, 8);
+    block.set(pairs, 8);
 
-    // Second size field (uint64 LE)
-    bv.setUint32(8 + blockSize,     blockSize, true);
-    bv.setUint32(8 + blockSize + 4, 0,         true);
+    bv.setUint32(8 + pairs.length,     sizeOfBlock, true);
+    bv.setUint32(8 + pairs.length + 4, 0,           true);
 
-    block.set(magic, 8 + blockSize + 8);
+    block.set(magic, 8 + pairs.length + 8);
 
     return block;
 }
