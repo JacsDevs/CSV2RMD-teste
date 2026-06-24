@@ -1928,8 +1928,8 @@
         const selectWizard = document.getElementById('templateExportacaoSelect');
         const formato = selectWizard ? selectWizard.value : 'linear';
         const htmlDicionario = formato === 'card'
-            ? await window.exportador.exportarHtmlCards({ embutirMidias: false })
-            : await window.exportador.exportarHtmlLinear({ embutirMidias: false });
+            ? await window.exportador.exportarHtmlCards({ embutirMidias: false, metadados: { tituloHtml: nomeApp } })
+            : await window.exportador.exportarHtmlLinear({ embutirMidias: false, metadados: { tituloHtml: nomeApp } });
         const midiasExtras = {};
         for (const tipo of ['audio', 'imagem', 'video']) {
             const dirName = tipo === 'imagem' ? 'foto' : tipo;
@@ -1992,15 +1992,15 @@
 
         // 1. Gerar HTML com caminhos relativos (mídias em pastas separadas)
         ghLog('🖋️ Gerando HTML do dicionário (caminhos relativos)...');
+        const nomeApp     = document.getElementById('apkNomeApp').value.trim();
         const selectWizard = document.getElementById('templateExportacaoSelect');
         const formato = selectWizard ? selectWizard.value : 'linear';
         const htmlDicionario = formato === 'card'
-            ? await window.exportador.exportarHtmlCards({ embutirMidias: false })
-            : await window.exportador.exportarHtmlLinear({ embutirMidias: false });
+            ? await window.exportador.exportarHtmlCards({ embutirMidias: false, metadados: { tituloHtml: nomeApp } })
+            : await window.exportador.exportarHtmlLinear({ embutirMidias: false, metadados: { tituloHtml: nomeApp } });
 
         // 2. Montar config.json com metadados do app
         const config = window.configurador ? window.configurador.getConfig() : {};
-        const nomeApp     = document.getElementById('apkNomeApp').value.trim();
         const versaoStr   = document.getElementById('apkVersao')?.value.trim() || '1.0';
         const packageName = document.getElementById('apkPackageName')?.value.trim() || '';
         config.nome = config.nome || nomeApp;
@@ -2343,8 +2343,8 @@
         const selectWizard = document.getElementById('templateExportacaoSelect');
         const formato = selectWizard ? selectWizard.value : 'linear';
         const htmlStr = formato === 'card'
-            ? await window.exportador.exportarHtmlCards({ embutirMidias: false })
-            : await window.exportador.exportarHtmlLinear({ embutirMidias: false });
+            ? await window.exportador.exportarHtmlCards({ embutirMidias: false, metadados: { tituloHtml: nomeApp } })
+            : await window.exportador.exportarHtmlLinear({ embutirMidias: false, metadados: { tituloHtml: nomeApp } });
         const htmlBytes = new TextEncoder().encode(htmlStr);
 
         const midias = new Map();
