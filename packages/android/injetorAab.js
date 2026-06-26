@@ -5,12 +5,14 @@
 import { patchManifestAab } from './patcherManifestAab.js';
 import { patchManifest } from './patcherManifest.js';
 
+// Sufixo -v4 adicionado pelo AAPT2 para recursos de densidade (API 4+ = Android 1.6+).
+// Estes são os paths reais gerados pelo Gradle e presentes no resources.arsc dos templates.
 const DENSITY_MAP = {
-    48:  'mdpi',
-    72:  'hdpi',
-    96:  'xhdpi',
-    144: 'xxhdpi',
-    192: 'xxxhdpi',
+    48:  'mdpi-v4',
+    72:  'hdpi-v4',
+    96:  'xhdpi-v4',
+    144: 'xxhdpi-v4',
+    192: 'xxxhdpi-v4',
 };
 
 export class InjetorAab {

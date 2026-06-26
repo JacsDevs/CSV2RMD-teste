@@ -35,9 +35,9 @@ export async function assinarV2(zipBytes, privateKeyPkcs8, certDer) {
         await crypto.subtle.digest('SHA-256', prefixarSecao(0xa5, cdBytes))
     );
 
-    // 4. EOCD modificado: substituir offset do CD por offset fictício
-    //    (o EOCD no signed-data usa offset 0 para o CD para ser independente do signing block)
-    const eocdMod = eocdComOffsetCdZero(eocdBytes);
+    // 4. EOCD para digest: CD offset = cdOffset (= posição do signing block no APK final).
+    //    Spec v2: "Start of Central Directory set to the offset of the APK Signing Block".
+    const eocdMod = eocdComOffsetCd(eocdBytes, cdOffset);
     const eocdDigest = new Uint8Array(
         await crypto.subtle.digest('SHA-256', prefixarSecao(0xa5, eocdMod))
     );
@@ -236,13 +236,6 @@ function montarSigningBlock(signedData, signature, certDer) {
 }
 
 // ─── EOCD manipulation ───────────────────────────────────────────────────────
-
-function eocdComOffsetCdZero(eocdBytes) {
-    const out  = new Uint8Array(eocdBytes);
-    const ov   = new DataView(out.buffer);
-    ov.setUint32(16, 0, true);  // CD offset = 0 for digest
-    return out;
-}
 
 function eocdComOffsetCd(eocdBytes, novoCdOffset) {
     const out = new Uint8Array(eocdBytes);

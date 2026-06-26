@@ -18,6 +18,9 @@ export async function assinarV1(zipBytes, privateKeyPkcs8, certPem) {
     const { unzipSync, zipSync } = await import(new URL('../../vendor/fflate.min.js', import.meta.url).href);
     const { default: forge } = await import(new URL('../../vendor/node-forge.min.js', import.meta.url).href);
 
+    // Ler métodos de compressão originais antes do unzip, para preservá-los ao remontar.
+    const metodosOriginais = lerMetodosCompressao(zipBytes);
+
     const arquivos = unzipSync(zipBytes);
 
     // Remove META-INF anterior
@@ -89,7 +92,21 @@ export async function assinarV1(zipBytes, privateKeyPkcs8, certPem) {
 
     arquivos['META-INF/CERT.RSA'] = certRsa;
 
-    return zipSync(arquivos, { level: 0 });
+    // Remontar preservando o método de compressão original de cada entrada.
+    // META-INF deve ser STORED (level 0) obrigatoriamente.
+    // Entradas não encontradas (não deveria ocorrer) ficam STORED por segurança.
+    const resultado = {};
+    for (const [path, content] of Object.entries(arquivos)) {
+        const bytes = content instanceof Uint8Array ? content : content[0];
+        if (path.startsWith('META-INF/')) {
+            resultado[path] = [bytes, { level: 0 }];
+        } else {
+            const origMethod = metodosOriginais.get(path);
+            const level = (origMethod === undefined || origMethod === 0) ? 0 : 6;
+            resultado[path] = [bytes, { level }];
+        }
+    }
+    return zipSync(resultado);
 }
 
 // ─── authenticatedAttributes ─────────────────────────────────────────────────
@@ -186,4 +203,36 @@ function buildPkcs7Asn1(forge, certAsn1, cert, authAttrItems, signature) {
             forge.asn1.oidToDer(forge.pki.oids.signedData).getBytes()),
         forge.asn1.create(forge.asn1.Class.CONTEXT_SPECIFIC, 0, true, [signedData]),
     ]);
+}
+
+// ─── Leitor de métodos de compressão do ZIP ───────────────────────────────────
+
+function lerMetodosCompressao(zipBytes) {
+    const view = new DataView(zipBytes.buffer, zipBytes.byteOffset, zipBytes.byteLength);
+    const result = new Map();
+
+    // Localizar EOCD
+    let eocdOff = -1;
+    for (let i = zipBytes.length - 22; i >= Math.max(0, zipBytes.length - 65558); i--) {
+        if (view.getUint32(i, true) === 0x06054b50) { eocdOff = i; break; }
+    }
+    if (eocdOff === -1) return result;
+
+    const cdOffset = view.getUint32(eocdOff + 16, true);
+    const cdSize   = view.getUint32(eocdOff + 12, true);
+    const td       = new TextDecoder();
+
+    let off = cdOffset;
+    while (off < cdOffset + cdSize) {
+        if (view.getUint32(off, true) !== 0x02014b50) break;
+        const method     = view.getUint16(off + 10, true);
+        const fnLen      = view.getUint16(off + 28, true);
+        const extraLen   = view.getUint16(off + 30, true);
+        const commentLen = view.getUint16(off + 32, true);
+        const filename   = td.decode(zipBytes.subarray(off + 46, off + 46 + fnLen));
+        result.set(filename, method);
+        off += 46 + fnLen + extraLen + commentLen;
+    }
+
+    return result;
 }

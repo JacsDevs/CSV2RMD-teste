@@ -6,6 +6,7 @@ import { GerenteChave } from './gerenteChave.js';
 import { InjetorAab }   from './injetorAab.js';
 import { assinarV1 }    from './signerV1.js';
 import { assinarV2 }    from './signerV2.js';
+import { zipalign }     from './zipalign.js';
 import { platform }     from '../platform/index.js';
 
 export class ExportadorAndroid {
@@ -103,8 +104,9 @@ export class ExportadorAndroid {
         onProgress(55, 'Injetando conteúdo no APK…');
         let apkBytes = await injector.injetar(templateBytesApk, appInfo, metaInfo, true);
 
-        onProgress(70, 'Assinando APK (v1 e v2)…');
+        onProgress(70, 'Assinando APK (v1, zipalign e v2)…');
         apkBytes = await assinarV1(apkBytes, privateKeyPkcs8, certPem);
+        apkBytes = zipalign(apkBytes);
         apkBytes = await assinarV2(apkBytes, privateKeyPkcs8, certDer);
 
         onProgress(85, 'Salvando arquivos…');
