@@ -99,7 +99,8 @@ export class InjetorAab {
                     path.endsWith('.mp4') ||
                     path.endsWith('.ogg') ||
                     path.endsWith('.aab') ||
-                    path.endsWith('.apk');
+                    path.endsWith('.apk') ||
+                    path === 'resources.arsc';  // Android 11+ exige STORED para mmap direto
 
                 resultado[path] = [entry, { level: semCompressao ? 0 : 6 }];
             }
